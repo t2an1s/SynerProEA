@@ -5,16 +5,7 @@
 // • Trades the prop‑firm challenge account exactly as before (your 601‑line logic).
 // • Instantly fires an *opposite* hedge in a separate MT5 account
 // • Hedge lot‑size is calculated with the full PropEA formula and daily‑DD safeguard.
-// • "Bleeds" 50 % of the hedge once 70 % of the stage target is reached (cuts penalty).
 // • 100 % compliant with Pine v6 syntax
-// -----------------------------------------------------------------------------------
-// AUTHOR : <your‑name>
-// CREATED : 2025‑05‑17
-// UPDATED : 2025-05-18 (Code reorganization & alert management)
-// NOTES : Requires TWO PineConnector EAs – one on the prop terminal (PC_ID)
-// and one on the live hedge terminal (HEDGE_ID). Both EA Volume Types
-// MUST be set to "Lots".
-// ═════════════════════════════════════════════════════════════════════════════════════
 
 strategy(title='EURUSD ‑ Synergy + PropEA Hedge',
 overlay=true,
