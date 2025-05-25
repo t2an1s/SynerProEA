@@ -1,0 +1,644 @@
+﻿//@version=6
+// ═════════════════════════════════════════════════════════════════════════════════════
+// Streamlined Synergy Strategy + PropEA‑style Hedge Engine (v2.1)
+// -----------------------------------------------------------------------------------
+// • Trades the prop‑firm challenge account exactly as before (your 601‑line logic).
+// • Instantly fires an *opposite* hedge in a separate MT5 account
+// • Hedge lot‑size is calculated with the full PropEA formula and daily‑DD safeguard.
+// • "Bleeds" 50 % of the hedge once 70 % of the stage target is reached (cuts penalty).
+// • 100 % compliant with Pine v6 syntax
+// -----------------------------------------------------------------------------------
+// AUTHOR : <your‑name>
+// CREATED : 2025‑05‑17
+// UPDATED : 2025-05-18 (Code reorganization & alert management)
+// NOTES : Requires TWO PineConnector EAs – one on the prop terminal (PC_ID)
+// and one on the live hedge terminal (HEDGE_ID). Both EA Volume Types
+// MUST be set to "Lots".
+// ═════════════════════════════════════════════════════════════════════════════════════
+
+strategy(title='EURUSD ‑ Synergy + PropEA Hedge',
+overlay=true,
+pyramiding=5,
+default_qty_type=strategy.fixed,
+default_qty_value=10000)
+
+// ═════════════════════════════════════════════════════════════════════════════════════
+// 1. GLOBAL SETTINGS AND HELPERS
+// ═════════════════════════════════════════════════════════════════════════════════════
+
+// ───────────────── 1.1 CORE SETTINGS ─────────────────
+groupCore='1. Core Strategy Settings'
+groupRisk='2. Risk Settings'
+_timeZone=input.string('UTC','Timezone',options=['UTC','UTC+1','UTC+2','UTC-1','UTC-2'],group=groupCore)
+
+// True "pip" size calculation
+float pipSize = syminfo.mintick < 0.01 and syminfo.type == "forex" ? syminfo.mintick*10 : syminfo.mintick
+float contractSize = syminfo.type == "forex" ? 100000 : 1 // auto-detect
+float pipValLot = contractSize * pipSize // €/$ per pip
+
+// ───────────────── 1.2 HELPER FUNCTIONS ─────────────────
+lotStep = input.float(0.01, 'Lot step (min increment)', minval=0.00001, group=groupRisk)
+
+fmtLot(float x) => str.tostring(x, format.mintick)
+roundLot(x) => math.max(math.round(x / lotStep) * lotStep, lotStep)
+
+// ───────────────── 1.3 RISK SETTINGS ─────────────────
+defLot = input.float(1.0, 'Fixed Lot', group=groupRisk)
+useRiskPct = input.bool(true, 'Risk % mode', group=groupRisk)
+riskPct = input.float(0.3, 'Risk %', minval=0.01, maxval=10, group=groupRisk)
+riskStr(float _lots) => useRiskPct ? str.tostring(riskPct) : fmtLot(_lots)
+
+// ═════════════════════════════════════════════════════════════════════════════════════
+// 2. TRADING SESSIONS
+// ═════════════════════════════════════════════════════════════════════════════════════
+
+// 2.1 Trading Sessions Input
+groupSession = '2.1 Trading Sessions' 
+mondaySession1 = input.session('0000-2359', 'Mon: Session 1 (HHMM-HHMM)', group=groupSession) 
+mondaySession2 = input.session('0000-2359', 'Mon: Session 2 (HHMM-HHMM)', group=groupSession) 
+tuesdaySession1 = input.session('0000-2359', 'Tue: Session 1 (HHMM-HHMM)', group=groupSession) 
+tuesdaySession2 = input.session('0000-2359', 'Tue: Session 2 (HHMM-HHMM)', group=groupSession) 
+wednesdaySession1 = input.session('0000-2359', 'Wed: Session 1 (HHMM-HHMM)', group=groupSession) 
+wednesdaySession2 = input.session('0000-2359', 'Wed: Session 2 (HHMM-HHMM)', group=groupSession) 
+thursdaySession1 = input.session('0000-2359', 'Thu: Session 1 (HHMM-HHMM)', group=groupSession) 
+thursdaySession2 = input.session('0000-2359', 'Thu: Session 2 (HHMM-HHMM)', group=groupSession) 
+fridaySession1 = input.session('0000-2359', 'Fri: Session 1 (HHMM-HHMM)', group=groupSession) 
+fridaySession2 = input.session('0000-2359', 'Fri: Session 2 (HHMM-HHMM)', group=groupSession)
+saturdaySession1 = input.session('0000-2359', 'Sat S1', group=groupSession)
+saturdaySession2 = input.session('0000-2359', 'Sat S2', group=groupSession)
+sundaySession1 = input.session('0000-2359', 'Sun S1', group=groupSession)
+sundaySession2 = input.session('0000-2359', 'Sun S2', group=groupSession)
+
+// 2.2 Session Detection Logic
+f_inAnySession(_s1, _s2) => not na(time(timeframe.period, _s1, _timeZone)) or (str.length(_s2) > 0 and not na(time(timeframe.period, _s2, _timeZone)))
+
+// Build inSession by weekday 
+var bool inSession = false 
+_currDOW = dayofweek(time, _timeZone) 
+switch _currDOW 
+dayofweek.monday => inSession := f_inAnySession(mondaySession1, mondaySession2) 
+dayofweek.tuesday => inSession := f_inAnySession(tuesdaySession1, tuesdaySession2) 
+dayofweek.wednesday => inSession := f_inAnySession(wednesdaySession1, wednesdaySession2) 
+dayofweek.thursday => inSession := f_inAnySession(thursdaySession1, thursdaySession2) 
+dayofweek.friday => inSession := f_inAnySession(fridaySession1, fridaySession2) 
+dayofweek.saturday => inSession := f_inAnySession(saturdaySession1, saturdaySession2)
+dayofweek.sunday => inSession := f_inAnySession(sundaySession1, sundaySession2)
+=> inSession := false
+
+// ═════════════════════════════════════════════════════════════════════════════════════
+// 3. TECHNICAL INDICATORS
+// ═════════════════════════════════════════════════════════════════════════════════════
+
+// ───────────────── 3.1 MARKET BIAS INDICATOR ─────────────────
+groupMarketBias = "3.1 Market Bias Settings"
+
+// ── Inputs ─────────────────────────────────────────────
+ha_htf = input.timeframe('', 'Market Bias Timeframe', group=groupMarketBias)
+ha_len = input.int(100, 'HA Period', minval=1, group=groupMarketBias)
+useMarketBias = input.bool(true, 'Use Market Bias', group=groupMarketBias)
+show_bias = input.bool(true, 'Show Market Bias', group=groupMarketBias)
+col_bull = input.color(color.lime, 'Bullish Color', group=groupMarketBias)
+col_bear = input.color(color.red, 'Bearish Color', group=groupMarketBias)
+
+// ── Heikin-Ashi no-repaint prep ──────────
+indexHighTF = timeframe.in_seconds(ha_htf)==timeframe.in_seconds('') ? 0 : barstate.isrealtime ? 1 : 0
+indexCurrTF = timeframe.in_seconds(ha_htf)==timeframe.in_seconds('') ? 0 : barstate.isrealtime ? 0 : 1
+f_no_repaint(_res, _expr) => request.security(syminfo.tickerid, _res, _expr[indexHighTF])[indexCurrTF]
+
+// smooth raw OHLC
+o = ta.ema(open, ha_len)
+h = ta.ema(high, ha_len)
+l = ta.ema(low, ha_len)
+c = ta.ema(close, ha_len)
+
+// compute HA
+haclose = f_no_repaint(ha_htf, (o + h + l + c)/4)
+xhaopen = f_no_repaint(ha_htf, (o + c)/2)
+haopen = na(xhaopen[1]) ? (o + c)/2 : (xhaopen[1] + haclose[1])/2
+hahigh = math.max(h, math.max(haopen, haclose))
+halow = math.min(l, math.min(haopen, haclose))
+
+// EMA-smooth those HA values
+o2 = f_no_repaint(ha_htf, ta.ema(haopen, ha_len))
+c2 = f_no_repaint(ha_htf, ta.ema(haclose, ha_len))
+h2 = f_no_repaint(ha_htf, ta.ema(hahigh, ha_len))
+l2 = f_no_repaint(ha_htf, ta.ema(halow, ha_len))
+ha_avg = (h2 + l2)/2
+
+// ── Oscillator & coloring ────────────────
+osc_len = input.int(7, 'Oscillator Period', group=groupMarketBias)
+osc_bias = 100 * (c2 - o2)
+osc_smooth = ta.ema(osc_bias, osc_len)
+
+sigcolor = switch
+(osc_bias > 0) and (osc_bias >= osc_smooth) => color.new(col_bull, 35)
+(osc_bias > 0) and (osc_bias < osc_smooth) => color.new(col_bull, 75)
+(osc_bias < 0) and (osc_bias <= osc_smooth) => color.new(col_bear, 35)
+(osc_bias < 0) and (osc_bias > osc_smooth) => color.new(col_bear, 75)
+=> na
+
+// ── Track bias changes ────────────────────────────────
+var bool prevBiasPositive = false // remembers last bar's sign
+bool currentBiasPositive = osc_bias > 0 // true if this bar is bullish
+bool biasChangedToBullish = not prevBiasPositive and currentBiasPositive
+bool biasChangedToBearish = prevBiasPositive and not currentBiasPositive
+
+if barstate.isconfirmed
+prevBiasPositive := currentBiasPositive
+// ── Plot the smoothed envelope ───────────────────────
+p_h = plot(h2, 'Bias High', color=color(na), display=display.data_window)
+p_l = plot(l2, 'Bias Low', color=color(na), display=display.data_window)
+fill(p_l, p_h, show_bias ? sigcolor : na)
+
+col = o2 > c2 ? col_bear : col_bull
+plotcandle(o2, h2, l2, c2,
+title='Heikin Smoothed', color=col,
+display=show_bias ? display.pane : display.data_window)
+
+// ───────────────── 3.2 ADX FILTER ─────────────────
+groupADX = '3.2 ADX Filter Settings'
+enableADXFilter = input.bool(true, "Enable ADX Filter", group=groupADX)
+adxPeriod = input.int(14, "ADX Period", minval=1, group=groupADX) 
+useDynamicADX = input.bool(true, "Dynamic Threshold", group=groupADX) 
+staticADXThreshold = input.float(25, "Static Threshold", minval=1, group=groupADX) 
+adxLookbackPeriod = input.int(20, "Average Lookback", minval=5, maxval=50, group=groupADX) 
+adxMultiplier = input.float(0.8, "Multiplier", minval=0.5, maxval=1.5, step=0.1, group=groupADX) 
+adxMinThreshold = input.float(15, "Minimum", minval=5, maxval=20, group=groupADX)
+
+// Calculate ADX values 
+tr = math.max(math.max(high - low, math.abs(high - close[1])), math.abs(low - close[1])) 
+dmPlus = high - high[1] > low[1] - low ? math.max(high - high[1], 0) : 0 
+dmMinus = low[1] - low > high - high[1] ? math.max(low[1] - low, 0) : 0 
+smoothedTR = ta.rma(tr, adxPeriod) 
+smoothedDMPlus = ta.rma(dmPlus, adxPeriod) 
+smoothedDMMinus = ta.rma(dmMinus, adxPeriod) 
+diPlus = 100 * (smoothedDMPlus / smoothedTR) 
+diMinus = 100 * (smoothedDMMinus / smoothedTR) 
+dx = 100 * math.abs(diPlus - diMinus) / (diPlus + diMinus) 
+adxValue = ta.rma(dx, adxPeriod)
+
+// Calculate rolling average of ADX for dynamic threshold 
+adxAverage = ta.sma(adxValue, adxLookbackPeriod) 
+dynamicADXThreshold = math.max(adxMinThreshold, adxAverage * adxMultiplier)
+
+// Determine which threshold to use 
+effectiveADXThreshold = useDynamicADX ? dynamicADXThreshold : staticADXThreshold
+
+// ADX trend condition using the effective threshold 
+adxTrendCondition = enableADXFilter ? adxValue > effectiveADXThreshold : true
+
+// ───────────────── 3.3 MULTI-TIMEFRAME SYNERGY SCORE ─────────────────
+synergyGroup = '3.3 Multi-Timeframe Synergy Settings'
+useSynergyScore = input.bool(true, "Use Synergy Score", group=synergyGroup)
+
+// Indicator weights 
+rsiWeight = input.float(1.0, "RSI Weight", group=synergyGroup, minval=-5, step=0.2) 
+trendWeight = input.float(1.0, "MA Trend Weight", group=synergyGroup, minval=-5, step=0.2) 
+macdvSlopeWeight = input.float(1.0, "MACDV Slope Weight", group=synergyGroup, minval=-5, step=0.2) 
+
+// Timeframe selection options - CORRECT TIMEFRAMES: 5m, 15m, 1h
+useTF5min = input.bool(true, "5M", group=synergyGroup, inline="tf1") 
+weight_m5 = input.float(1.0, "Weight", group=synergyGroup, minval=-3.0, step=0.2, inline="tf1")
+
+useTF15min = input.bool(true, "15M", group=synergyGroup, inline="tf2") 
+weight_m15 = input.float(1.0, "Weight", group=synergyGroup, minval=-3.0, step=0.2, inline="tf2")
+
+useTF1hour = input.bool(true, "1H", group=synergyGroup, inline="tf3") 
+weight_h1 = input.float(1.0, "Weight", group=synergyGroup, minval=-3.0, step=0.2, inline="tf3")
+
+// 5-minute timeframe 
+rsi_5_min = useTF5min ? request.security(syminfo.tickerid, '5', ta.rsi(close, 14), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na 
+ma1_5_min = useTF5min ? request.security(syminfo.tickerid, '5', ta.ema(close, 10), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na 
+ma2_5_min = useTF5min ? request.security(syminfo.tickerid, '5', ta.ema(close, 100), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na 
+macdv_5_min = useTF5min ? request.security(syminfo.tickerid, '5', ta.ema(close, 12) - ta.ema(close, 26), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na
+macdv_5_min_prev = useTF5min ? request.security(syminfo.tickerid, '5', (ta.ema(close, 12) - ta.ema(close, 26))[1], gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na
+
+// 15-minute timeframe 
+rsi_15_min = useTF15min ? request.security(syminfo.tickerid, '15', ta.rsi(close, 14), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na 
+ma1_15_min = useTF15min ? request.security(syminfo.tickerid, '15', ta.ema(close, 50), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na 
+ma2_15_min = useTF15min ? request.security(syminfo.tickerid, '15', ta.ema(close, 200), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na 
+macdv_15_min = useTF15min ? request.security(syminfo.tickerid, '15', ta.ema(close, 12) - ta.ema(close, 26), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na
+macdv_15_min_prev = useTF15min ? request.security(syminfo.tickerid, '15', (ta.ema(close, 12) - ta.ema(close, 26))[1], gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na
+
+// 1-hour timeframe 
+rsi_1_hour = useTF1hour ? request.security(syminfo.tickerid, '60', ta.rsi(close, 14), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na 
+ma1_1_hour = useTF1hour ? request.security(syminfo.tickerid, '60', ta.ema(close, 50), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na 
+ma2_1_hour = useTF1hour ? request.security(syminfo.tickerid, '60', ta.ema(close, 200), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na 
+macdv_1_hour = useTF1hour ? request.security(syminfo.tickerid, '60', ta.ema(close, 12) - ta.ema(close, 26), gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na
+macdv_1_hour_prev = useTF1hour ? request.security(syminfo.tickerid, '60', (ta.ema(close, 12) - ta.ema(close, 26))[1], gaps=barmerge.gaps_on, lookahead=barmerge.lookahead_off) : na
+
+// Helper function for synergy score calculation 
+f_synergyAdd(aboveCondition, belowCondition, factor, timeFactor) => 
+aboveCondition ? factor * timeFactor : belowCondition ? -(factor * timeFactor) : 0
+
+// Synergy Score Calculation 
+float synergyScoreRaw = 0 
+var float confirmedSynergyScore = 0
+
+// Only calculate on confirmed bars to prevent repainting 
+if barstate.isconfirmed 
+// Reset the raw score 
+synergyScoreRaw := 0 
+// 5-minute timeframe 
+if useTF5min 
+synergyScoreRaw += f_synergyAdd(rsi_5_min > 50, rsi_5_min < 50, rsiWeight, weight_m5) 
+synergyScoreRaw += f_synergyAdd(ma1_5_min > ma2_5_min, ma1_5_min < ma2_5_min, trendWeight, weight_m5) 
+synergyScoreRaw += f_synergyAdd(macdv_5_min > macdv_5_min_prev, macdv_5_min < macdv_5_min_prev, macdvSlopeWeight, weight_m5)
+
+// 15-minute timeframe 
+if useTF15min 
+synergyScoreRaw += f_synergyAdd(rsi_15_min > 50, rsi_15_min < 50, rsiWeight, weight_m15) 
+synergyScoreRaw += f_synergyAdd(ma1_15_min > ma2_15_min, ma1_15_min < ma2_15_min, trendWeight, weight_m15) 
+synergyScoreRaw += f_synergyAdd(macdv_15_min > macdv_15_min_prev, macdv_15_min < macdv_15_min_prev, macdvSlopeWeight, weight_m15)
+
+// 1-hour timeframe 
+if useTF1hour 
+synergyScoreRaw += f_synergyAdd(rsi_1_hour > 50, rsi_1_hour < 50, rsiWeight, weight_h1) 
+synergyScoreRaw += f_synergyAdd(ma1_1_hour > ma2_1_hour, ma1_1_hour < ma2_1_hour, trendWeight, weight_h1) 
+synergyScoreRaw += f_synergyAdd(macdv_1_hour > macdv_1_hour_prev, macdv_1_hour < macdv_1_hour_prev, macdvSlopeWeight, weight_h1)
+
+// Update the confirmed score directly without rolling average
+confirmedSynergyScore := synergyScoreRaw
+
+// ANTI-REPAINTING: Use the confirmed score for trading decisions 
+float synergyScore = confirmedSynergyScore 
+
+// Plot synergy score in separate pane
+var synScorePlot = plot(synergyScore, title='Synergy Score', color=color.rgb(33,150,243), display=display.pane)
+
+// Use a plot for zero line instead of hline
+var zeroLinePlot = plot(0, title='Zero Line', color=color.gray, style=plot.style_line, linewidth=1, display=display.pane)
+
+// ═════════════════════════════════════════════════════════════════════════════════════
+// 4. TRADE MANAGEMENT
+// ═════════════════════════════════════════════════════════════════════════════════════
+
+// ───────────────── 4.1 STOP LOSS & TAKE PROFIT ─────────────────
+groupSLTP = "4.1 Stop Loss & Take Profit Management"
+
+// Swing Mode Settings
+pivotTPBars = input.int(50, title='Lookback Bars for Pivot-based SL/TP', group=groupSLTP)
+pvtLenL = input.int(6, 'Pivot Length Left', group=groupSLTP, inline='pivots')
+pvtLenR = input.int(6, 'Pivot Length Right', group=groupSLTP, inline='pivots')
+pvthi_ = ta.pivothigh(high, pvtLenL, pvtLenR)
+pvtlo_ = ta.pivotlow(low, pvtLenL, pvtLenR)
+
+// Plot pivot markers with negative offset to align on the actual bar
+plot(pvthi_, title='Pivot High', offset=-pvtLenR,
+color=color.red, style=plot.style_circles, linewidth=2)
+plot(pvtlo_, title='Pivot Low', offset=-pvtLenR,
+color=color.green, style=plot.style_circles, linewidth=2)
+
+// Functions to scan for pivot points within the lookback window
+f_findDeepestPivotLowBelowClose(lookbackBars) =>
+float best = na
+int foundBar = bar_index
+for i = 0 to math.min(lookbackBars, bar_index)
+if not na(pvtlo_[i])
+pivotValue = pvtlo_[i]
+pivotBar = bar_index - i + pvtLenR // Adjust for pivot calculation delay
+// Check if pivot is valid (below current close and deeper than currently found best)
+if pivotValue < close and (na(best) or pivotValue < best)
+best := pivotValue
+foundBar := pivotBar
+[best, foundBar]
+
+f_findHighestPivotHighAboveClose(lookbackBars) =>
+float best = na
+int foundBar = bar_index
+for i = 0 to math.min(lookbackBars, bar_index)
+if not na(pvthi_[i])
+pivotValue = pvthi_[i]
+pivotBar = bar_index - i + pvtLenR // Adjust for pivot calculation delay
+// Check if pivot is valid (above current close and higher than currently found best)
+if pivotValue > close and (na(best) or pivotValue > best)
+best := pivotValue
+foundBar := pivotBar
+[best, foundBar]
+
+// ───────────────── 4.2 SCALE-OUT STRATEGY ─────────────────
+groupScaleOut = "4.2 Scale-Out Strategy Settings"
+enableScaleOut = input.bool(true, "Enable Scale-Out Strategy", group=groupScaleOut, tooltip="Take partial profits at specified levels between entry and TP")
+scaleOut1Enabled = input.bool(true, "Enable Scale-Out", inline="scale1", group=groupScaleOut)
+scaleOut1Pct = input.float(50, "% of TP Distance", minval=5, maxval=95, step=5, inline="scale1", group=groupScaleOut)
+scaleOut1Size = input.float(50, "% of Position", options=[25, 33, 50, 66, 75], inline="scale1", group=groupScaleOut)
+scaleOut1BE = input.bool(true, "Set BE on Scale-Out", inline="scale1_be", group=groupScaleOut, tooltip="If enabled, set breakeven for remaining position after scale-out")
+
+// ───────────────── 4.3 BREAKEVEN SETTINGS ─────────────────
+groupBE = '4.3 BreakEven Settings'
+enableBreakEven = input.bool(false, title='Enable BreakEven w/o Scale-Out', group=groupBE)
+beTrigger = input.int(10, title='BE Trigger (pips)', group=groupBE, minval=1)
+
+// Additional persistent flags for scale-out tracking
+var bool scaleOut1LongTriggered = false
+var bool scaleOut1ShortTriggered = false
+var bool beAppliedLong = false
+var bool beAppliedShort = false
+
+// Function to calculate price at percentage of range
+getPriceAtPctOfRange(startPrice, endPrice, pct) =>
+startPrice + ((endPrice - startPrice) * pct / 100)
+
+// ═════════════════════════════════════════════════════════════════════════════════════
+// 5. PROPEA HEDGE ENGINE
+// ═════════════════════════════════════════════════════════════════════════════════════
+
+// ───────────────── 5.1 HEDGE ENGINE SETTINGS ─────────────────
+groupHedge = '5.1 PropEA Hedge Settings'
+groupPC = '5.2 PineConnector Settings'
+PC_ID = input.string('6759136690389', 'Prop Licence ID', group=groupPC)
+HEDGE_ID = input.string('7012345678901', 'Hedge Licence ID', group=groupPC)
+
+maxDD = input.float(4000, 'Max DD (M)', group=groupHedge) // $-value
+challengeC = input.float(700, 'Challenge Fee (C)', group=groupHedge) // $-value
+slipBufD = input.float(0.10, 'Slip-buffer δ', group=groupHedge, minval=0, step=0.01)
+
+propPayout = input.float(0.0, 'Payout haircut', group=groupHedge, minval=0, maxval=1)
+bleedOn = input.bool(true, 'Bleed hedge @70 % tgt', group=groupHedge)
+dailyDD = input.float(1700, 'Daily DD Cap', group=groupHedge)
+stage = input.int(1, 'Current Stage (1-3)', group=groupHedge, minval=1, maxval=3)
+stageTgt = input.float(1000, 'Stage Target', group=groupHedge)
+
+// ───────────────── 5.2 PINECONNECTOR SETTINGS ─────────────────
+propStartBal = input.float(40000, 'Prop Start Balance', group=groupPC)
+propBalManual = input.float(40000, 'Prop Current Balance', group=groupPC)
+liveBalManual = input.float(39670, 'Live Balance (manual)', group=groupPC)
+liveInitBal = input.float(39670, 'Live **Initial** Balance', group=groupPC) // NEW
+
+// R (=M/C) kept for dashboard; NOT used for sizing any more
+ratioR = maxDD / challengeC 
+
+// ★ NEW — fixed cost-recovery factor F (≤1)
+hedgeFactor = math.min(1, (challengeC * (1 + slipBufD)) / maxDD)
+
+// ───────────────── 5.3 LIVE-RISK & REQUIRED HEDGE CAPITAL ────────────────────
+propProfit = propBalManual - propStartBal
+remainToTarget = math.max(0, stageTgt - propProfit) // still to earn
+remainToFail = math.max(0, propBalManual - (propStartBal - maxDD)) // cushion left
+totalRisk = challengeC + remainToFail // fee + at-risk
+liveNeeded = totalRisk * hedgeFactor // capital to keep safe
+
+// ───────────────── 5.4 PINECONNECTOR ROUTING SETTINGS ─────────────────
+symb = syminfo.ticker
+alertsEnabled = input.bool(true, 'Enable Alerts', group=groupPC)
+alertExit = input.bool(true, 'Alert Exits', group=groupPC)
+alertStops = input.bool(true, 'Alert Stop Adj.', group=groupPC)
+useAlertForExits = input.bool(true, "Alert on Exits", group=groupPC)
+useAlertForStopAdjustments = input.bool(true, "Alert on Stop Adjustments", group=groupPC)
+
+// ───────────────── 5.5 COST-RECOVERY METRICS ─────────────────
+float propLossAbs = strategy.netprofit < 0 ? math.abs(strategy.netprofit) : 0
+float realProfit = liveBalManual - liveInitBal
+float recoveryPct = propLossAbs > 0 ? (realProfit / propLossAbs) * 100 : na
+
+// ───────────────── 5.6 DAILY DRAWDOWN TRACKING ─────────────────
+var float dayEq = na
+bool isNewDay = na(time("D")) ? false : na(time("D")[1])
+if isNewDay
+dayEq := strategy.equity[1]
+if na(dayEq)
+dayEq := strategy.equity
+
+float dailyLoss = math.max(0, dayEq - strategy.equity)
+var bool bleedDone = false
+
+// ═════════════════════════════════════════════════════════════════════════════════════
+// 6. ENTRY & EXIT LOGIC
+// ═════════════════════════════════════════════════════════════════════════════════════
+
+// ───────────────── 6.1 ENTRY CONDITION VALIDATION ─────────────────
+// Master trigger – need at least one of the two modules on
+bool entryTriggersEnabled = useSynergyScore or useMarketBias
+
+// Fresh pivot scan each bar
+[stoploss_long_swing, _] = f_findDeepestPivotLowBelowClose(pivotTPBars)
+[tpLongPivot, _] = f_findHighestPivotHighAboveClose(pivotTPBars)
+[stoploss_short_swing, _] = f_findHighestPivotHighAboveClose(pivotTPBars)
+[tpShortPivot, _] = f_findDeepestPivotLowBelowClose(pivotTPBars)
+
+bool longCondition = barstate.isconfirmed and inSession and entryTriggersEnabled and adxTrendCondition and (useSynergyScore ? synergyScore > 0 : true) and (useMarketBias ? biasChangedToBullish : true) and not na(stoploss_long_swing) and stoploss_long_swing < close and not na(tpLongPivot) and tpLongPivot > close
+
+bool shortCondition = barstate.isconfirmed and 
+inSession and 
+entryTriggersEnabled and 
+adxTrendCondition and 
+(useSynergyScore ? synergyScore < 0 : true) and 
+(useMarketBias ? biasChangedToBearish : true) and 
+not na(stoploss_short_swing) and 
+stoploss_short_swing > close and 
+not na(tpShortPivot) and 
+tpShortPivot < close
+
+// Persistent per-trade pivots
+var float pivotStopLongEntry = na
+var float pivotTpLongEntry = na
+var float pivotStopShortEntry = na
+var float pivotTpShortEntry = na
+
+// ───────────────── 6.2 EXECUTION VARIABLES ─────────────────
+var float lastEntryLots = na
+var float hedgeLotsLast = na
+
+// ═════════════════════════════════════════════════════════════════════════════════════
+// 7. ALERT MANAGEMENT SYSTEM
+// ═════════════════════════════════════════════════════════════════════════════════════
+
+// ───────────────── 7.1 ALERT FUNCTION LIBRARY ─────────────────
+
+// Function to create PineConnector format alert message
+f_createPCAlert(string licenseId, string command, string symbol, string risk="", string sl="", string tp="", string comment="") =>
+string result = licenseId + "," + command + "," + symbol
+if str.length(risk) > 0
+result := result + ",risk=" + risk
+if str.length(sl) > 0
+result := result + ",sl=" + sl
+if str.length(tp) > 0
+result := result + ",tp=" + tp
+if str.length(comment) > 0
+result := result + ",comment=" + comment
+result
+
+// Function to send prop entry alert
+f_sendPropEntryAlert(string direction, float lots, float stopLevel, float targetLevel, string comment) =>
+if alertsEnabled
+string riskValue = riskStr(lots)
+string slValue = str.tostring(stopLevel, "#.#####")
+string tpValue = str.tostring(targetLevel, "#.#####")
+string cmd = direction == "Long" ? "buy" : "sell"
+string alertMsg = f_createPCAlert(PC_ID,cmd,symb,riskValue,slValue,tpValue,comment)
+alert(alertMsg, alert.freq_once_per_bar)
+
+// Function to send hedge entry alert
+f_sendHedgeEntryAlert(string direction, float lots, float stopLevel, float targetLevel) =>
+if alertsEnabled
+string cmd = direction == "Long" ? "buy" : "sell"
+string lotsValue = fmtLot(lots)
+string slValue = str.tostring(stopLevel, "#.#####")
+string tpValue = str.tostring(targetLevel, "#.#####")
+string alertMsg = f_createPCAlert(HEDGE_ID,cmd,symb,lotsValue,slValue,tpValue,"Hedge")
+alert(alertMsg, alert.freq_once_per_bar)
+
+// Function to send stop adjustment alert
+f_sendStopAdjustmentAlert(string direction, float newStopLevel, string comment) =>
+if alertsEnabled and useAlertForStopAdjustments
+string cmd = direction == "Long" ? "newsltplong" : "newsltpshort"
+string alertMsg = f_createPCAlert(PC_ID,cmd,symb,"",str.tostring(math.round(newStopLevel, 5)),"",comment)
+alert(alertMsg, alert.freq_once_per_bar)
+
+// Function to send scale-out alert
+f_sendScaleOutAlert(string direction, float lotsToClose) =>
+if alertsEnabled and useAlertForExits
+string cmd = direction == "Long" ? "closelongvol" : "closeshortvol"
+string lotsValue = str.tostring(math.max(lotsToClose, 0.01))
+string alertMsg = f_createPCAlert(PC_ID,cmd,symb,lotsValue,"","","ScaleOut")
+alert(alertMsg, alert.freq_once_per_bar)
+
+// Function to send full close alert
+f_sendFullCloseAlert(string direction) =>
+if alertsEnabled and useAlertForExits and barstate.isconfirmed
+string cmd = direction == "Long" ? "closelong" : "closeshort"
+string alertMsg = f_createPCAlert(PC_ID,cmd,symb,"","","","FullExit")
+alert(alertMsg, alert.freq_once_per_bar)
+
+// Function to send hedge bleed alert
+f_sendHedgeBleedAlert(string direction, float lotsToClose) =>
+if alertsEnabled
+string cmd = direction == "Long" ? "closelongvol" : "closeshortvol"
+string alertMsg = f_createPCAlert(HEDGE_ID,cmd,symb,fmtLot(lotsToClose),"","","HedgeBleed")
+alert(alertMsg, alert.freq_once_per_bar)
+
+// ═════════════════════════════════════════════════════════════════════════════════════
+// 8. STRATEGY EXECUTION
+// ═════════════════════════════════════════════════════════════════════════════════════
+
+// ───────────────── 8.1 ENTRY EXECUTION ─────────────────
+
+// LONG ENTRY
+if longCondition
+// ① sizing
+float slPips = math.abs(close - stoploss_long_swing) / pipSize
+float rawLots = (strategy.equity * riskPct / 100) / (slPips * pipValLot)
+float lotsEntry = useRiskPct ? roundLot(rawLots) : defLot
+strategy.entry('Long', strategy.long, qty=lotsEntry)
+
+// ② hedge sizing
+float hedgeRaw = lotsEntry * hedgeFactor
+float lot_live = roundLot(hedgeRaw)
+
+// ③ store for alerts / dashboard
+lastEntryLots := lotsEntry
+hedgeLotsLast := lot_live
+pivotStopLongEntry := stoploss_long_swing
+pivotTpLongEntry := tpLongPivot
+
+// ④ send alerts using the centralized functions
+f_sendPropEntryAlert("Long", lastEntryLots, pivotStopLongEntry, pivotTpLongEntry, "Long")
+f_sendHedgeEntryAlert("Short", hedgeLotsLast, pivotTpLongEntry, pivotStopLongEntry)
+
+// SHORT ENTRY
+if shortCondition
+float slPips = math.abs(stoploss_short_swing - close) / pipSize
+float rawLots = (strategy.equity * riskPct / 100) / (slPips * pipValLot)
+float lotsEntry = useRiskPct ? roundLot(rawLots) : defLot
+strategy.entry('Short', strategy.short, qty=lotsEntry)
+
+float hedgeRaw = lotsEntry * hedgeFactor
+float lot_live = roundLot(hedgeRaw)
+
+lastEntryLots := lotsEntry
+hedgeLotsLast := lot_live
+pivotStopShortEntry := stoploss_short_swing
+pivotTpShortEntry := tpShortPivot
+
+f_sendPropEntryAlert("Short", lastEntryLots, pivotStopShortEntry, pivotTpShortEntry, "Short")
+f_sendHedgeEntryAlert("Long", hedgeLotsLast, pivotTpShortEntry, pivotStopShortEntry)
+
+// ───────────────── 8.2 POSITION MANAGEMENT ─────────────────
+
+// Long position management
+if strategy.position_size > 0
+float entryPrice = strategy.position_avg_price
+float distInPips = (close - entryPrice) / pipSize
+// Scale-out logic for long positions
+if enableScaleOut and scaleOut1Enabled and not scaleOut1LongTriggered and not na(pivotTpLongEntry)
+// Calculate scale-out price at specified percentage of the target distance
+float scaleOut1Price = getPriceAtPctOfRange(entryPrice, pivotTpLongEntry, scaleOut1Pct)
+// Execute scale-out when price reaches the level
+if close >= scaleOut1Price
+scaleOut1LongTriggered := true
+float partialQty = strategy.position_size * (scaleOut1Size / 100.0)
+strategy.close("Long", qty=partialQty, comment="Scale-Out")
+// Set breakeven if enabled
+if scaleOut1BE and not beAppliedLong
+beAppliedLong := true
+pivotStopLongEntry := entryPrice
+// Alert for stop adjustment
+f_sendStopAdjustmentAlert("Long", entryPrice, "BE_After_ScaleOut")
+// Alert for scale-out
+float scaleOutLots = math.round(lastEntryLots * (scaleOut1Size / 100.0), 2)
+f_sendScaleOutAlert("Long", scaleOutLots)
+
+// Regular breakeven (separate from scale-out)
+if enableBreakEven and not beAppliedLong and distInPips >= beTrigger
+beAppliedLong := true
+pivotStopLongEntry := entryPrice
+f_sendStopAdjustmentAlert("Long", entryPrice, "BreakEven")
+// Apply the exit with updated stop levels
+strategy.exit('Exit L', 'Long', 
+stop=pivotStopLongEntry,
+limit=pivotTpLongEntry)
+
+// Short position management 
+if strategy.position_size < 0
+float entryPrice = strategy.position_avg_price
+float distInPips = (entryPrice - close) / pipSize
+// Scale-out logic for short positions
+if enableScaleOut and scaleOut1Enabled and not scaleOut1ShortTriggered and not na(pivotTpShortEntry)
+// Calculate scale-out price at specified percentage of the target distance
+float scaleOut1Price = getPriceAtPctOfRange(entryPrice, pivotTpShortEntry, scaleOut1Pct)
+// Execute scale-out when price reaches the level
+if close <= scaleOut1Price
+scaleOut1ShortTriggered := true
+float partialQty = math.abs(strategy.position_size) * (scaleOut1Size / 100.0)
+strategy.close("Short", qty=partialQty, comment="Scale-Out")
+// Set breakeven if enabled
+if scaleOut1BE and not beAppliedShort
+beAppliedShort := true
+pivotStopShortEntry := entryPrice
+// Alert for stop adjustment
+f_sendStopAdjustmentAlert("Short", entryPrice, "BE_After_ScaleOut")
+// Alert for scale-out
+float scaleOutLots = math.round(lastEntryLots * (scaleOut1Size / 100.0), 2)
+f_sendScaleOutAlert("Short", scaleOutLots)
+
+// Regular breakeven (separate from scale-out)
+if enableBreakEven and not beAppliedShort and distInPips >= beTrigger
+beAppliedShort := true
+pivotStopShortEntry := entryPrice
+f_sendStopAdjustmentAlert("Short", entryPrice, "BreakEven")
+// Apply the exit with updated stop levels
+strategy.exit('Exit S', 'Short',
+stop=pivotStopShortEntry,
+limit=pivotTpShortEntry)
+// ───────────────── 8.3 HANDLE FULL POSITION CLOSE ALERTS ─────────────────
+// Track the last closed trade ID we've already alerted for
+var int lastAlertedTradeId = -1
+
+// Only generate exit alerts for newly closed trades
+if strategy.position_size == 0 and strategy.closedtrades > 0 and strategy.closedtrades > lastAlertedTradeId
+int currentTradeId = strategy.closedtrades - 1
+string exitComment = strategy.closedtrades.exit_comment(currentTradeId)
+// Only alert for strategic exits, not for every bar after closing
+if (exitComment == "Exit L" or exitComment == "Exit S") and currentTradeId > lastAlertedTradeId
+string direction = exitComment == "Exit L" ? "Long" : "Short"
+f_sendFullCloseAlert(direction)
+// Update the last alerted trade ID to prevent repeated alerts
+lastAlertedTradeId := currentTradeId
+
+// ───────────────── 8.4 HEDGE BLEED EXECUTION ─────────────────
+if bleedOn and not bleedDone and strategy.netprofit >= stageTgt * 0.70
+bleedDone := true
+string direction = strategy.position_size > 0 ? "Short" : "Long"
+f_sendHedgeBleedAlert(direction, hedgeLotsLast / 2)
+
+
