@@ -245,60 +245,75 @@
      }
    
    //+------------------------------------------------------------------+
-   int OnInit()
+   //+------------------------------------------------------------------+
+int OnInit()
+  {
+   PrevBarTime = 0; 
+   CalculateGMTOffset();
+
+   h_adx_main = iADX(_Symbol, _Period, InpADX_Period);
+   if(h_adx_main == INVALID_HANDLE)
      {
-      PrevBarTime = 0; 
-      CalculateGMTOffset();
-   
-      h_adx_main = iADX(_Symbol, _Period, InpADX_Period);
-      if(h_adx_main == INVALID_HANDLE)
-        {
-         Print("Error creating ADX indicator handle. Error code: ", GetLastError());
-         return(INIT_FAILED);
-        }
-   
-      // --- Initialize Dashboard Tracking Variables ---
-      if(InpPropStartBalanceOverride > 0.0)
-        {
-         g_initial_challenge_balance_prop = InpPropStartBalanceOverride;
-        }
-      else
-        {
-         g_initial_challenge_balance_prop = AccountInfoDouble(ACCOUNT_BALANCE); // Use current balance if no override
-        }
-      g_prop_balance_at_day_start = AccountInfoDouble(ACCOUNT_BALANCE); // Initial balance for the first day
-      g_prop_highest_equity_peak = MathMax(AccountInfoDouble(ACCOUNT_EQUITY), g_initial_challenge_balance_prop); // Start with current equity or initial balance
-      g_prop_current_trading_days = 0;
-      g_last_day_for_daily_reset = TimeCurrent(); // Initialize with current time
-      ArrayFree(g_unique_trading_day_dates); // Ensure array is empty at start
-      // Consider pre-scanning history for past trading days if EA is attached mid-challenge
-      // For simplicity, we start counting from EA initialization.
-   
-      string program_name_str = MQLInfoString(MQL_PROGRAM_NAME);
-      Print(program_name_str + " (Master) Initialized. EA Version: " + g_ea_version_str + ", Build: " + IntegerToString(__MQL5BUILD__) + ". Initial Prop Balance for Dash: ", g_initial_challenge_balance_prop);
-      
-      prev_HA_Bias_Oscillator_Value = 0; 
-      biasChangedToBullish_MQL = false;
-      biasChangedToBearish_MQL = false;
-   
-      // --- DASHBOARD CALLS ---
-      Dashboard_Init();
-      ChartVisuals_InitPivots(InpShowPivotVisuals, InpPivotUpColor, InpPivotDownColor);
-      ChartVisuals_InitMarketBias(InpShowMarketBiasVisual, InpMarketBiasUpColor, InpMarketBiasDownColor);
-      
-      // Updated call to Dashboard_UpdateStaticInfo
-      Dashboard_UpdateStaticInfo(g_ea_version_str, InpMagicNumber, _Symbol, EnumToString(_Period),
-                                 InpChallengeCost, InpChallengeStages, // General info
-                                 g_initial_challenge_balance_prop,    // Initial balance for prop
-                                 InpDailyDDLimitDollars,              // Daily DD limit $ for prop
-                                 InpMaxAccountDDLimitDollars,         // Max DD limit $ for prop
-                                 InpStageTargetProfitDollars,         // Profit Target $ for prop
-                                 InpMinTradingDaysTotal_Prop);        // Min trading days for prop
-      // --- END DASHBOARD CALLS ---
-   
-      Comment("SynPropEA1 Initialized. Waiting for signals...");
-      return(INIT_SUCCEEDED);
+      Print("Error creating ADX indicator handle. Error code: ", GetLastError());
+      return(INIT_FAILED);
      }
+
+   // --- Initialize Dashboard Tracking Variables ---
+   if(InpPropStartBalanceOverride > 0.0)
+     {
+      g_initial_challenge_balance_prop = InpPropStartBalanceOverride;
+     }
+   else
+     {
+      g_initial_challenge_balance_prop = AccountInfoDouble(ACCOUNT_BALANCE); // Use current balance if no override
+     }
+   g_prop_balance_at_day_start = AccountInfoDouble(ACCOUNT_BALANCE); 
+   g_prop_highest_equity_peak = MathMax(AccountInfoDouble(ACCOUNT_EQUITY), g_initial_challenge_balance_prop); 
+   g_prop_current_trading_days = 0;
+   g_last_day_for_daily_reset = TimeCurrent(); 
+   ArrayFree(g_unique_trading_day_dates); 
+
+   string program_name_str = MQLInfoString(MQL_PROGRAM_NAME);
+   Print(program_name_str + " (Master) Initialized. EA Version: " + g_ea_version_str + ", Build: " + IntegerToString(__MQL5BUILD__) + ". Initial Prop Balance for Dash: ", g_initial_challenge_balance_prop);
+   
+   prev_HA_Bias_Oscillator_Value = 0; 
+   biasChangedToBullish_MQL = false;
+   biasChangedToBearish_MQL = false;
+
+   // --- BEGIN DASHBOARD CALLS ---
+   
+   Dashboard_Init();
+
+   // Calculate percentages from dollar amounts for the dashboard
+   double daily_dd_limit_pct = 0.0;
+   double max_acc_dd_pct = 0.0;
+   double stage_target_pct = 0.0;
+
+   if (g_initial_challenge_balance_prop > 0) // Avoid division by zero
+     {
+      daily_dd_limit_pct = (InpDailyDDLimitDollars / g_initial_challenge_balance_prop) * 100.0;
+      max_acc_dd_pct     = (InpMaxAccountDDLimitDollars / g_initial_challenge_balance_prop) * 100.0;
+      stage_target_pct   = (InpStageTargetProfitDollars / g_initial_challenge_balance_prop) * 100.0;
+     }
+
+   Dashboard_UpdateStaticInfo(
+      g_ea_version_str,               // Use your existing global for EA version string
+      InpMagicNumber,                 // Use your existing global input
+      g_initial_challenge_balance_prop, // Use the initialized global variable
+      daily_dd_limit_pct,             // Calculated percentage
+      max_acc_dd_pct,                 // Calculated percentage
+      stage_target_pct,               // Calculated percentage
+      InpMinTradingDaysTotal_Prop,    // Use your existing global input
+      _Symbol,                        
+      EnumToString(_Period),          
+      InpChallengeCost                // Use your existing global input
+   );
+
+   // --- END DASHBOARD CALLS ---
+   
+   Comment("SynPropEA1 Initialized. Waiting for signals...");
+   return(INIT_SUCCEEDED);
+  }
    
    //+------------------------------------------------------------------+
    void OnDeinit(const int reason)
