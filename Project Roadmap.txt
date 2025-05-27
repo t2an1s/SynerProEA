@@ -1,0 +1,65 @@
+  1. Hedge Trade SL/TP for `SynPropEA2.mq5`:  
+      Confirmed:   `SynPropEA2.mq5` (Slave) will mirror SL/TP modifications from `SynPropEA1.mq5` (Master).
+      Implementation:   The `COMMON_FILE` commands `OPEN_LONG`, `OPEN_SHORT`, and `MODIFY_SLTP` will include the SL and TP price levels. `SynPropEA2.mq5` will use these to set or modify the SL/TP on its corresponding hedge trades.
+
+  2. Dynamic "Live Bal" and Dashboard Structure:  
+      Confirmed:   "Live Bal" should be dynamic.
+      Implementation for Dynamic Live Account Info:  
+        `SynPropEA2.mq5` will write its current Account Balance, Equity, and perhaps Daily PnL to the `EA2_Status.txt` file on each tick or a regular short interval (e.g., every few seconds).
+        `SynPropEA1.mq5` will read `EA2_Status.txt` on each tick to update its dashboard fields related to the live account (e.g., "Live Bal," "Profit on Real" for Cost Recovery).
+      Manual Inputs for `SynPropEA1.mq5`:  
+        Cost of Challenge (`challengeC` from your guide)
+        Number of Stages (e.g., 1 or 2)
+        Target Profit for current stage (`stageTgt`)
+        Max Account Drawdown Limit (`maxDD`)
+        Daily Drawdown Limit (You mentioned "daily DD" - I'll assume this is a monetary value or percentage).
+      Dashboard Development:  
+        The main dashboard for `SynPropEA1.mq5` will be developed in a separate `.mqh` include file for better code organization. This dashboard will be displayed on the chart where `SynPropEA1.mq5` is running.
+        `SynPropEA2.mq5` will have a mini-dashboard displaying:
+            Connection Status (to Master EA / File System)
+            Its own Daily PnL
+
+  3. Bleed Rule Removal:  
+      Confirmed:   The Bleed rule, its logic, and the "Bleed" checkmark on the dashboard are completely removed.
+
+  Dashboard Content - `SynPropEA1.mq5` (Main Dashboard in `.mqh`):  
+
+I will model the dashboard based on the fields visible in your screenshot (`Screenshot PRPEA Dash.pdf`) and cross-reference with Section 7 of your "Strategy+PropEA User Guide.txt".
+
+      Top Section (General Info):  
+        License Type: (Will display "TESTER" or a user-defined string)
+        Version: (EA Version, e.g., 1.0)
+        Status: (e.g., "Connected / Working," "Disconnected from Slave," "Awaiting Signal," "Trading Paused - Slave Error")
+        Working mode: (e.g., "Prop (Auto)," "Prop (Manual Trade Pending)")
+      Live Trading Information (Columns: Prop Account | Real Account | Remarks):  
+        Volume: (Current open volume on Prop | Current open volume on Real/Hedge) | (e.g., "Projection (X.XX ratio)" - this ratio would be `propLots / hedgeLots`)
+        Daily PnL: (Prop Daily PnL) | (Real/Hedge Daily PnL - from `EA2_Status.txt`)
+        Summary PnL: (Prop `AccountEquity() - PropStartBalance` / `stageTgt`) | (Real/Hedge PnL for current challenge stage / `challengeC` - if tracking cost recovery target) | (Prop % to target / Hedge % to cost recovery)
+        Swaps & Commission: (Prop total) | (Real/Hedge total)
+        Trading Days: (Current Prop trading day / Max allowed, if applicable)
+      Account Status (Columns: Prop Account | Real Account | Status/Remarks):  
+        Account: (Prop Account Number) | (Real Account Number - perhaps from `EA2_Status.txt` or manual input) | "Ok" or status
+        Account Currency: (Prop Currency) | (Real Currency) | "Match" / "Mismatch"
+        Free margin: (Prop Free Margin) | (Real Free Margin - from `EA2_Status.txt`) | "Sufficient" / "Low"
+        Symbol: (Current chart symbol for Prop) | (Symbol traded by Hedge - should match) | e.g., "Market Open/Closed"
+        Daily DD Type: (e.g., "Balance & Equity" - as per prop firm rules)
+        Today Allowed DD: (Calculated remaining allowed DD for the day for Prop) / (Daily DD Limit Input) | (Prop % of allowed DD used)
+        Max Allowed DD: (Calculated remaining allowed Max DD for Prop) / (Max DD Limit Input) | (Prop % of allowed Max DD used)
+        Balance & Equity: (Prop AccountBalance() & AccountEquity()) | (Real AccountBalance() & AccountEquity() - from `EA2_Status.txt`) | (Timestamp of last update from Real)
+      Cost Recovery Estimate (Columns: Criteria | Loss on Prop | Profit on Real | Recovery %):  
+        Daily DD: (Current Prop Daily Loss) | (Current Real/Hedge Daily Profit) | (Recovery % for the day)
+        Max DD: (Total Prop Loss contributing to Max DD) | (Total Real/Hedge Profit) | (Overall Recovery % vs `challengeC`)
+      Strategy-Specific Indicators (from Section 7 of your guide, integrated where logical):  
+        Stage / Passed / Target / Progress (Covered in Summary PnL)
+          Bias indicator:   (Visual: e.g., colored dot/arrow for last HA flip) - will add this.
+          Spread≈p:   (Approximate spread for the current symbol) - will add this.
+          Win %:   (Closed trade win rate for prop trades) - will add this.
+          Live Req. / Risk £ / ↔ R:   (Calculated `liveNeeded`, `totalRisk`, and M:C ratio) - will add this section.
+
+  Mini-Dashboard for `SynPropEA2.mq5`:  
+
+    EA Name & Version
+    Status: (e.g., "Connected to Master commands," "File Read Error," "Trading Active," "Account Issue")
+    Last Command Processed: (Timestamp or command type)
+    Daily PnL (Live Account): (Calculated from its own trades)
+    Current Balance / Equity (Live Account)
