@@ -123,6 +123,25 @@ int      g_digits_value;
 int      g_ea_open_positions_count = 0;    // Count of positions by this EA on this symbol
 ENUM_ORDER_TYPE g_ea_open_positions_type = WRONG_VALUE; // Direction of existing EA positions
 
+// --- Slave EA Status Global Variables ---
+double   g_slave_balance = 0.0;
+double   g_slave_equity = 0.0;
+double   g_slave_daily_pnl = 0.0;
+long     g_slave_account_number = 0;
+string   g_slave_account_currency = "";
+string   g_slave_status_text = "Slave N/A";
+bool     g_slave_is_connected = false;
+datetime g_slave_last_update_in_file = 0;       // Timestamp from within the slave status file
+datetime g_slave_last_update_processed_time = 0; // Last time EA1 successfully processed the slave file
+int      g_slave_status_file_handle = INVALID_HANDLE;
+int      g_common_command_file_handle = INVALID_HANDLE;
+string   g_csv_delimiter = ","; // Using comma as per initial plan, ensure consistency with slave
+
+// New globals for additional slave data
+double   g_slave_open_volume = 0.0;
+int      g_slave_leverage = 0;
+string   g_slave_server = "N/A";
+
 //+------------------------------------------------------------------+
 void UpdateEAOpenPositionsState()
   {
@@ -170,10 +189,11 @@ double GetPipToPointsMultiplier()
 void CalculateGMTOffset()
   {
    string offset_str = InpBrokerTimeZoneOffset;
+   PrintFormat("CalculateGMTOffset: Raw InpBrokerTimeZoneOffset = '%s'", offset_str);
    StringReplace(offset_str, "GMT", "");
    StringReplace(offset_str, " ", ""); 
    broker_time_gmt_offset_seconds = (long)StringToInteger(offset_str) * 3600;
-   Print("Broker GMT Offset Seconds: ", broker_time_gmt_offset_seconds);
+   PrintFormat("CalculateGMTOffset: Parsed offset_str = '%s', broker_time_gmt_offset_seconds = %d", offset_str, broker_time_gmt_offset_seconds);
   }
 
 //+------------------------------------------------------------------+
@@ -187,9 +207,15 @@ bool IsInTradingSession()
    MqlDateTime gmt_time_struct;
    TimeToStruct(current_gmt_timestamp, gmt_time_struct);
 
-   int day_of_week = gmt_time_struct.day_of_week; 
+   PrintFormat("IsInTradingSession: Broker Time: %s, Calculated GMT: %s (Offset applied: %d seconds)", 
+               TimeToString(current_broker_dt, TIME_DATE|TIME_SECONDS), 
+               TimeToString(current_gmt_timestamp, TIME_DATE|TIME_SECONDS),
+               broker_time_gmt_offset_seconds);
+
+   int day_of_week = gmt_time_struct.day_of_week; // 0=Sun, 1=Mon, ..., 6=Sat
    int current_hour_gmt = gmt_time_struct.hour;
    int current_min_gmt = gmt_time_struct.min;
+   PrintFormat("IsInTradingSession: Current GMT DayOfWeek: %d, Hour: %d, Min: %d", day_of_week, current_hour_gmt, current_min_gmt);
 
    string session1_str = "", session2_str = "";
 
@@ -222,6 +248,9 @@ bool IsInTradingSession()
             int start_time_in_mins   = start_h * 60 + start_m;
             int end_time_in_mins     = end_h * 60 + end_m;
 
+            PrintFormat("IsInTradingSession: Checking Session1 '%s' (Start %02d:%02d, End %02d:%02d GMT) against Current GMT %02d:%02d", 
+                        session1_str, start_h, start_m, end_h, end_m, current_hour_gmt, current_min_gmt);
+
             if(end_time_in_mins < start_time_in_mins) 
               {
                if(current_time_in_mins >= start_time_in_mins || current_time_in_mins < end_time_in_mins)
@@ -251,6 +280,9 @@ bool IsInTradingSession()
             int start_time_in_mins   = start_h * 60 + start_m;
             int end_time_in_mins     = end_h * 60 + end_m;
 
+            PrintFormat("IsInTradingSession: Checking Session2 '%s' (Start %02d:%02d, End %02d:%02d GMT) against Current GMT %02d:%02d", 
+                        session2_str, start_h, start_m, end_h, end_m, current_hour_gmt, current_min_gmt);
+
             if(end_time_in_mins < start_time_in_mins) 
               {
                if(current_time_in_mins >= start_time_in_mins || current_time_in_mins < end_time_in_mins)
@@ -266,8 +298,12 @@ bool IsInTradingSession()
      }
    if((session1_str == "" && session2_str == "") || in_session1 || in_session2)
      {
+      PrintFormat("IsInTradingSession: RESULT = true (Session1 Active: %s, Session2 Active: %s, Or No Sessions Defined For Day)", 
+                  in_session1 ? "Yes":"No", in_session2 ? "Yes":"No");
       return true;
      }
+   PrintFormat("IsInTradingSession: RESULT = false (Session1 Active: %s, Session2 Active: %s)", 
+               in_session1 ? "Yes":"No", in_session2 ? "Yes":"No");
    return false;
   }
 
@@ -612,6 +648,12 @@ bool OpenTrade(int signal_type, double lot_size, double sl_price, double tp_pric
      {
       AddUniqueTradingDay(TimeCurrent()); 
       // g_ea_open_positions_count is updated by UpdateEAOpenPositionsState() at start of OnTick
+      
+      // --- Write command to slave EA ---
+      string cmd_type = (request.type == ORDER_TYPE_BUY) ? "OPEN_LONG" : "OPEN_SHORT";
+      WriteCommandToSlaveFile(cmd_type, result.order, _Symbol, lot_size, result.price, request.sl, request.tp);
+      // --- End write command ---
+      
       return true;
      }
    return false;
@@ -623,6 +665,9 @@ int OnInit()
    PrevBarTime = 0; 
    CalculateGMTOffset();
    
+   // Removed shared path logic, FILE_COMMON handles this.
+   Print("File operations for inter-EA communication will use the common shared directory (FILE_COMMON).");
+
    g_point_value = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
    g_digits_value = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
    g_ea_version_str = "1.04"; 
@@ -651,11 +696,25 @@ int OnInit()
    MqlDateTime temp_dt; TimeToStruct(TimeCurrent(),temp_dt); temp_dt.hour=0; temp_dt.min=0; temp_dt.sec=0;
    g_last_day_for_daily_reset = StructToTime(temp_dt); 
    ArrayFree(g_unique_trading_day_dates); 
+   
+   // Initialize slave status variables
+   g_slave_balance = 0.0;
+   g_slave_equity = 0.0;
+   g_slave_daily_pnl = 0.0;
+   g_slave_account_number = 0;
+   g_slave_account_currency = "";
+   g_slave_status_text = "Slave Init...";
+   g_slave_is_connected = false;
+   g_slave_last_update_in_file = 0;
+   g_slave_last_update_processed_time = 0;
+
    UpdateEAOpenPositionsState(); // Initial check of open positions
 
    string program_name_str = MQLInfoString(MQL_PROGRAM_NAME);
-   Print(program_name_str + " (Master) Initialized. EA Version: " + g_ea_version_str + ", Build: " + IntegerToString(__MQL5BUILD__) + ". Initial Prop Balance for Dash: ", g_initial_challenge_balance_prop);
-   
+   string init_msg_part1 = program_name_str + " (Master) Initialized. EA Version: " + g_ea_version_str + ", Build: " + IntegerToString(__MQL5BUILD__);
+   string init_msg_part2 = ". Initial Prop Balance for Dash: " + DoubleToString(g_initial_challenge_balance_prop, 2);
+   Print(init_msg_part1 + init_msg_part2); // Consolidated print statement
+
    prev_HA_Bias_Oscillator_Value = 0; 
    biasChangedToBullish_MQL = false;
    biasChangedToBearish_MQL = false;
@@ -729,6 +788,23 @@ void OnTick()
    int signal = 0; 
    is_session_active = IsInTradingSession(); 
 
+   // --- Daily Drawdown Check for Master EA ---   
+   bool daily_dd_breached = false;
+   double daily_dd_floor = g_prop_balance_at_day_start - InpDailyDDLimitDollars;
+   if(AccountInfoDouble(ACCOUNT_EQUITY) <= daily_dd_floor)
+     {
+      daily_dd_breached = true;
+      current_status_msg = StringFormat("Daily DD Limit Hit! Equity %.2f <= Floor %.2f. No new trades.", 
+                                       AccountInfoDouble(ACCOUNT_EQUITY), daily_dd_floor);
+      Print(current_status_msg);
+      // No new signals will be processed if breached. 
+      // Existing trades are managed by SL/TP or manual intervention.
+     }
+
+   // --- Process Slave Status File ---
+   ProcessSlaveStatusFile();
+   // --- End Process Slave Status File ---
+
    if(Bars(_Symbol, _Period) < g_min_bars_needed_for_ea && MQLInfoInteger(MQL_TESTER)==false) 
      {
       current_status_msg = StringFormat("Waiting for bars (%d/%d)", (int)Bars(_Symbol, _Period), g_min_bars_needed_for_ea);
@@ -788,9 +864,21 @@ void OnTick()
       bool allow_new_trade = false;
       signal = GetTradingSignal(); // Get the potential signal first
 
-      if(g_ea_open_positions_count == 0) {
+      // Check slave connection status BEFORE allowing any new trade consideration
+      if (!g_slave_is_connected)
+        {
+         Print("Master EA: Slave EA is not connected or status is stale. New trades are disabled.");
+         current_status_msg = "Slave Disconnected - New Trades Off";
+         // Allow_new_trade remains false, existing trades will continue to be managed by their SL/TP by broker or EA logic not dependent on new signals.
+        }
+      else if (daily_dd_breached) // Check if daily DD was breached on Master account
+        {
+          // Message is already set, allow_new_trade remains false
+          Print("Master EA: Daily DD limit breached. New trades disabled.");
+        }
+      else if(g_ea_open_positions_count == 0) { // Slave is connected, DD not breached, check for open positions
           allow_new_trade = true; // No open trades, can open new one if signal exists
-      } else { // Existing EA trade(s) open
+      } else { // Existing EA trade(s) open & Slave is connected & DD not breached
           if (g_ea_open_positions_count < InpPyramidingMaxOrders) {
               // Check if new signal is in the same direction as existing trades
               if (signal == 1 && g_ea_open_positions_type == ORDER_TYPE_BUY) {
@@ -807,7 +895,7 @@ void OnTick()
           }
       }
       
-      if(is_session_active && InpAllowTrades && allow_new_trade && signal != 0)
+      if(is_session_active && InpAllowTrades && allow_new_trade && signal != 0 && g_slave_is_connected && !daily_dd_breached) // Added daily_dd_breached check
         {
          if(signal == 1) { current_status_msg = "Signal: LONG"; }
          else if(signal == -1) { current_status_msg = "Signal: SHORT"; }
@@ -858,6 +946,8 @@ void OnTick()
         {
           if (!is_session_active) { current_status_msg = "Session Inactive"; }
           else if (!InpAllowTrades) { current_status_msg = "Trading Disabled"; }
+          else if (daily_dd_breached) { /* status already set */ }
+          else if (!g_slave_is_connected && signal !=0) {current_status_msg = "Slave N/A - New Trades Off";} // Specific message if slave is the issue
           else if (signal == 0 && g_ea_open_positions_count == 0) { current_status_msg = "In Session - No Signal"; }
           else if (g_ea_open_positions_count >= InpPyramidingMaxOrders) { current_status_msg = "Max Orders Open"; }
           else if (g_ea_open_positions_count > 0) { current_status_msg = StringFormat("Position Open (%s)", EnumToString(g_ea_open_positions_type));}
@@ -872,15 +962,20 @@ void OnTick()
                                 (g_ea_open_positions_count < InpPyramidingMaxOrders || 
                                 (g_ea_open_positions_count > 0 && signal !=0 && 
                                  ((signal == 1 && g_ea_open_positions_type == ORDER_TYPE_BUY) || (signal == -1 && g_ea_open_positions_type == ORDER_TYPE_SELL))
-                                ));
+                                ) && !daily_dd_breached) ; // Added daily_dd_breached check
       Dashboard_UpdateStatus(current_status_msg, (signal != 0 && can_look_for_trade) ); 
-      Dashboard_UpdateSlaveStatus("N/A", 0.0, 0.0, 0.0, false); 
+      Dashboard_UpdateSlaveStatus(g_slave_status_text, g_slave_balance, g_slave_equity, g_slave_daily_pnl, g_slave_is_connected, 
+                                 g_slave_account_number, g_slave_account_currency, g_slave_open_volume, g_slave_leverage, g_slave_server);
      } 
     else if (Bars(_Symbol, _Period) >= g_min_bars_needed_for_ea && !isNewBar) 
      {
         // Update status message on non-new-bar ticks
         if (!is_session_active) { current_status_msg = "Session Inactive"; }
         else if (!InpAllowTrades) { current_status_msg = "Trading Disabled"; }
+        else if (daily_dd_breached) { 
+            current_status_msg = StringFormat("Daily DD Limit Hit! Equity %.2f <= Floor %.2f. No new trades.", 
+                                          AccountInfoDouble(ACCOUNT_EQUITY), daily_dd_floor);
+        }
         else if (g_ea_open_positions_count >= InpPyramidingMaxOrders) { current_status_msg = "Max Orders Open"; }
         else if (g_ea_open_positions_count > 0) { current_status_msg = StringFormat("Position Open (%s)", EnumToString(g_ea_open_positions_type));}
         else { current_status_msg = "Monitoring...";  }
@@ -890,9 +985,15 @@ void OnTick()
    Dashboard_UpdateDynamicInfo(
       AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY),
       g_prop_balance_at_day_start, g_prop_highest_equity_peak, g_prop_current_trading_days,    
-      g_ea_open_positions_count, 
-      0, 0, 
-      is_session_active 
+      // Slave data now passed via Dashboard_UpdateSlaveStatus
+      is_session_active,
+      // Add master EA's volume
+      g_ea_open_positions_count > 0 ? PositionGetDouble(POSITION_VOLUME) : 0.0,
+      daily_dd_floor, // Pass the calculated daily DD floor for display
+      InpDailyDDLimitDollars, // Pass the limit itself
+      g_initial_challenge_balance_prop - InpMaxAccountDDLimitDollars, // Static Max DD Floor
+      g_prop_highest_equity_peak - InpMaxAccountDDLimitDollars, // Trailing Max DD Floor from Peak
+      InpMaxAccountDDLimitDollars // Pass the Max DD limit itself
    );
 
    string comment_str;
@@ -1267,4 +1368,291 @@ int GetTradingSignal()
      }
    return 0; // NO SIGNAL
   }
+
 //+------------------------------------------------------------------+
+//| Write Command to Slave EA File                                   |
+//+------------------------------------------------------------------+
+// command_type: "OPEN_LONG", "OPEN_SHORT", "MODIFY_HEDGE", "CLOSE_HEDGE"
+void WriteCommandToSlaveFile(string command_type, ulong master_ticket, 
+                             string symbol="", double lots=0, double entry_price=0, 
+                             double sl_price=0, double tp_price=0) // Made params optional
+  {
+   if(InpCommonFileName == "")
+     {
+      Print("WriteCommandToSlaveFile: Common command file name is not set. Cannot write command.");
+      return;
+     }
+
+   g_common_command_file_handle = FileOpen(InpCommonFileName, FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
+
+   if(g_common_command_file_handle == INVALID_HANDLE)
+     {
+      PrintFormat("WriteCommandToSlaveFile: Error opening common command file %s (in shared folder). Error: %d", InpCommonFileName, GetLastError());
+      return;
+     }
+
+   FileSeek(g_common_command_file_handle, 0, SEEK_END); // Append
+
+   FileWrite(g_common_command_file_handle, command_type);
+   FileWrite(g_common_command_file_handle, master_ticket); // Master's ticket is always relevant
+
+   if(command_type == "OPEN_LONG" || command_type == "OPEN_SHORT")
+     {
+      FileWrite(g_common_command_file_handle, symbol);
+      FileWrite(g_common_command_file_handle, lots);
+      FileWrite(g_common_command_file_handle, entry_price); // Master's entry for OPEN
+      FileWrite(g_common_command_file_handle, sl_price);    // Master's SL for OPEN
+      FileWrite(g_common_command_file_handle, tp_price);    // Master's TP for OPEN
+     }
+   else if(command_type == "MODIFY_HEDGE")
+     {
+      FileWrite(g_common_command_file_handle, symbol); // Symbol might be good for context
+      FileWrite(g_common_command_file_handle, 0.0);    // Lots not directly relevant for modify
+      FileWrite(g_common_command_file_handle, 0.0);    // Entry price not relevant for modify
+      FileWrite(g_common_command_file_handle, sl_price); // This is the new SL for the SLAVE (Master's new TP)
+      FileWrite(g_common_command_file_handle, tp_price); // This is the new TP for the SLAVE (Master's new SL)
+     }
+   else if(command_type == "CLOSE_HEDGE")
+     {
+      FileWrite(g_common_command_file_handle, symbol); // Symbol might be good for context
+      FileWrite(g_common_command_file_handle, 0.0);    // Lots not relevant
+      FileWrite(g_common_command_file_handle, 0.0);    // Entry price not relevant
+      FileWrite(g_common_command_file_handle, 0.0);    // SL not relevant
+      FileWrite(g_common_command_file_handle, 0.0);    // TP not relevant
+     }
+   else // Unknown command type
+     {
+       FileWrite(g_common_command_file_handle, symbol);
+       FileWrite(g_common_command_file_handle, lots);
+       FileWrite(g_common_command_file_handle, entry_price);
+       FileWrite(g_common_command_file_handle, sl_price);
+       FileWrite(g_common_command_file_handle, tp_price);
+     }
+
+   long current_time_long = TimeCurrent();
+   string timestamp_to_write_str = IntegerToString(current_time_long);
+   FileWrite(g_common_command_file_handle, timestamp_to_write_str); 
+   PrintFormat("DEBUG EA1: Timestamp string written to file: '%s' (Raw long was: %d)", timestamp_to_write_str, current_time_long);
+
+   FileClose(g_common_command_file_handle);
+   PrintFormat("WriteCommandToSlaveFile: Command '%s' written for ticket %d. Symbol: %s, Lots: %.2f, SL: %.5f, TP: %.5f",
+               command_type, master_ticket, symbol, lots, sl_price, tp_price); // Adjusted print for brevity
+  }
+
+//+------------------------------------------------------------------+
+//| Process Slave EA Status File                                     |
+//+------------------------------------------------------------------+
+void ProcessSlaveStatusFile()
+  {
+   if(InpSlaveStatusFile == "")
+     {
+      g_slave_is_connected = false;
+      g_slave_status_text = "Slave File N/A";
+      return;
+     }
+
+   // Reset previous status slightly
+   g_slave_is_connected = false; 
+   // Don't reset text immediately, keep last known if file read fails temporarily
+
+    // Added FILE_COMMON flag
+   g_slave_status_file_handle = FileOpen(InpSlaveStatusFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
+   if(g_slave_status_file_handle == INVALID_HANDLE)
+     {
+      // Only update status text if it's not already indicating a file error, to avoid spamming logs
+      if(g_slave_last_update_processed_time == 0 || TimeCurrent() - g_slave_last_update_processed_time > 60) // e.g. if no update for 1 min
+      {
+        g_slave_status_text = "Slave File Read Err";
+        // PrintFormat("ProcessSlaveStatusFile: Error opening slave status file '%s'. Error: %d", InpSlaveStatusFile, GetLastError());
+      }
+      g_slave_is_connected = false;
+      return;
+     }
+
+   if(!FileIsEnding(g_slave_status_file_handle))
+     {
+      // Assuming format: Balance;Equity;DailyPnL;AccountNumber;AccountCurrency;StatusText;IsConnected(true/false);FileTimestamp(long);OpenVolume;Leverage;Server
+      string s_balance = FileReadString(g_slave_status_file_handle);
+      string s_equity = FileReadString(g_slave_status_file_handle);
+      string s_daily_pnl = FileReadString(g_slave_status_file_handle);
+      string s_acc_num = FileReadString(g_slave_status_file_handle);
+      string s_acc_curr = FileReadString(g_slave_status_file_handle);
+      string s_status_text = FileReadString(g_slave_status_file_handle);
+      string s_is_connected = FileReadString(g_slave_status_file_handle);
+      string s_file_timestamp = FileReadString(g_slave_status_file_handle);
+      
+      // Read the new fields directly, assuming they are present
+      string s_open_volume = FileReadString(g_slave_status_file_handle);
+      string s_leverage = FileReadString(g_slave_status_file_handle);
+      string s_server = FileReadString(g_slave_status_file_handle); // This should be the last field
+
+      // Check if line/file ended AFTER reading all expected fields for the current record
+      bool line_properly_ended = FileIsLineEnding(g_slave_status_file_handle) || FileIsEnding(g_slave_status_file_handle);
+      
+      if (s_file_timestamp != "" && line_properly_ended) // Basic check that we got up to the timestamp AND the line ended as expected
+        {
+            g_slave_balance = StringToDouble(s_balance);
+            g_slave_equity = StringToDouble(s_equity);
+            g_slave_daily_pnl = StringToDouble(s_daily_pnl);
+            g_slave_account_number = StringToInteger(s_acc_num);
+            g_slave_account_currency = s_acc_curr;
+            g_slave_status_text = s_status_text;
+            g_slave_last_update_in_file = (datetime)StringToInteger(s_file_timestamp);
+
+            // Process new fields - StringToDouble/Integer handle empty strings by returning 0
+            g_slave_open_volume = StringToDouble(s_open_volume);
+            g_slave_leverage = StringToInteger(s_leverage);
+            g_slave_server = s_server; 
+
+            if (g_slave_server == "") g_slave_server = "N/A"; // Explicit default if server string is empty after read
+
+            PrintFormat("ProcessSlaveStatusFile DEBUG: Parsed Slave Data: Vol=%.2f, Lev=%d, Srv='%s', AccNum=%d, Curr='%s', Bal=%.2f, Eq=%.2f, PNL=%.2f, ConnectedStr=%s, Timestamp=%s (%d)",
+                        g_slave_open_volume, g_slave_leverage, g_slave_server, 
+                        g_slave_account_number, g_slave_account_currency, g_slave_balance, g_slave_equity, g_slave_daily_pnl,
+                        s_is_connected, TimeToString(g_slave_last_update_in_file), g_slave_last_update_in_file );
+
+            // Check freshness of data
+            if(TimeCurrent() - g_slave_last_update_in_file > 120) // If data in file is older than 2 minutes
+            {
+                g_slave_is_connected = false;
+                g_slave_status_text = "Slave Data Stale";
+                g_slave_open_volume = 0.0;
+                g_slave_leverage = 0;
+                g_slave_server = "Stale";
+            }
+            else 
+            {
+                 g_slave_is_connected = (s_is_connected == "true" || s_is_connected == "1");
+                 if (!g_slave_is_connected && g_slave_status_text != "Slave Data Stale") g_slave_status_text = "Slave Not Conn."; 
+            }
+            g_slave_last_update_processed_time = TimeCurrent(); 
+        }
+      else // Line was not properly terminated, or essential s_file_timestamp was empty
+        {
+         if(g_slave_last_update_processed_time == 0 || TimeCurrent() - g_slave_last_update_processed_time > 60)
+           {
+            g_slave_status_text = "Slave File Format Err";
+            if (!line_properly_ended && s_file_timestamp != "") g_slave_status_text = "Slave File Fmt (LineEnd)";
+            PrintFormat("ProcessSlaveStatusFile: Format error. LineProperlyEnded: %s, s_file_timestamp: '%s'", 
+                        line_properly_ended?"true":"false", s_file_timestamp);
+           }
+         g_slave_is_connected = false;
+         g_slave_open_volume = 0.0;
+         g_slave_leverage = 0;
+         g_slave_server = "FmtErr";
+        }
+     }
+   else // File is ending (empty or already read)
+     {
+      if(g_slave_last_update_processed_time == 0 || TimeCurrent() - g_slave_last_update_processed_time > 60)
+      {
+        g_slave_status_text = "Slave File Empty";
+        // Print("ProcessSlaveStatusFile: Slave status file is empty.");
+      }
+      g_slave_is_connected = false;
+     }
+   FileClose(g_slave_status_file_handle);
+  }
+
+//+------------------------------------------------------------------+
+//| Trade Event Function                                             |
+//+------------------------------------------------------------------+
+void OnTradeTransaction(const MqlTradeTransaction& trans,
+                        const MqlTradeRequest& request,
+                        const MqlTradeResult& result)
+  {
+   PrintFormat("OnTradeTransaction: Fired. TransType: %s, Order: %d, Position: %d, Deal: %d", 
+               EnumToString(trans.type), trans.order, trans.position, trans.deal);
+
+   if (trans.type != TRADE_TRANSACTION_DEAL_ADD)
+     {
+      // Print("OnTradeTransaction: Exiting - Not TRADE_TRANSACTION_DEAL_ADD.");
+      return; 
+     }
+   Print("OnTradeTransaction: Is TRADE_TRANSACTION_DEAL_ADD.");
+
+   ulong deal_order_ticket = trans.order;
+   long deal_order_magic = 0;
+   if (deal_order_ticket != 0)
+     {
+      deal_order_magic = HistoryOrderGetInteger(deal_order_ticket, ORDER_MAGIC);
+     }
+   PrintFormat("OnTradeTransaction: Deal Order Ticket: %d, Deal Order Magic: %d (EA Magic: %d)", 
+               deal_order_ticket, deal_order_magic, InpMagicNumber);
+
+   ulong affected_position_ticket = trans.position; 
+   if(affected_position_ticket == 0)
+     {
+      Print("OnTradeTransaction: Exiting - Affected Position Ticket is 0.");
+      return; 
+     }
+   PrintFormat("OnTradeTransaction: Affected Position Ticket: %d", affected_position_ticket);
+
+   string transaction_symbol = trans.symbol;
+   if(transaction_symbol != _Symbol && _Symbol != "") 
+     {
+      PrintFormat("OnTradeTransaction: Exiting - Symbol mismatch. TransSymbol: %s, EA Symbol: %s", transaction_symbol, _Symbol);
+      return;
+     }
+   PrintFormat("OnTradeTransaction: Symbol OK (TransSymbol: %s, EA Symbol: %s)", transaction_symbol, _Symbol);
+
+   // If a deal has occurred and it relates to a position ticket, 
+   // and that position ticket no longer selects (is closed),
+   // we will send a CLOSE_HEDGE command for this position ticket.
+   // We are currently assuming that if this EA is monitoring transactions, any closed position 
+   // it detects on its symbol was likely one it managed, even if the closing order's magic is 0 (e.g. manual close or SL/TP).
+   if(!PositionSelectByTicket(affected_position_ticket))
+     {
+      PrintFormat("OnTradeTransaction: Position #%d (Master) for %s detected as closed. Deal #%d from Order #%d (OrderMagic: %d). Sending CLOSE_HEDGE command.",
+                  affected_position_ticket, transaction_symbol, trans.deal, deal_order_ticket, deal_order_magic);
+      WriteCommandToSlaveFile("CLOSE_HEDGE", affected_position_ticket, transaction_symbol);
+     }
+   else
+     {
+      PrintFormat("OnTradeTransaction: Position #%d still selectable. Current Volume: %.2f. Not considered closed by this check.", 
+                  affected_position_ticket, PositionGetDouble(POSITION_VOLUME));
+      // Additional check: If it's an opening deal for OUR EA, we don't want to mistake it for a close.
+      // The WriteCommandToSlaveFile for OPEN is already in the OpenTrade function.
+      // This OnTradeTransaction is primarily for detecting external closures or future modifications.
+      if (deal_order_magic == InpMagicNumber && trans.deal != 0) // A deal from our EA's order
+        {
+          // This could be the opening deal. We don't need to do anything here for opening.
+          PrintFormat("OnTradeTransaction: Deal #%d (Order #%d, Magic %d) is from our EA. Position #%d volume: %.2f. This is likely an opening/modifying deal, not a closure for this logic block.",
+                       trans.deal, deal_order_ticket, deal_order_magic, affected_position_ticket, PositionGetDouble(POSITION_VOLUME));
+        }
+     }
+
+   // --- Check for SL/TP modifications based on the request object ---
+   // This part specifically targets modifications like dragging SL/TP on the chart.
+   if (request.magic == InpMagicNumber && request.action == TRADE_ACTION_SLTP && request.position != 0)
+     {
+      ulong position_ticket_for_sltp_mod = request.position; // Position ticket from the request
+      if (PositionSelectByTicket(position_ticket_for_sltp_mod)) 
+        {
+         // Ensure the selected position's symbol matches the EA's symbol if EA is symbol-specific
+         string selected_pos_symbol = PositionGetString(POSITION_SYMBOL);
+         if (selected_pos_symbol == _Symbol || _Symbol == "")
+           {
+            double new_master_sl = request.sl; // SL from the request (this is master's new SL)
+            double new_master_tp = request.tp; // TP from the request (this is master's new TP)
+
+            PrintFormat("OnTradeTransaction: Detected SL/TP modification REQUEST for position #%d (%s). New Master SL: %.5f, New Master TP: %.5f. Sending MODIFY_HEDGE.",
+                        position_ticket_for_sltp_mod, selected_pos_symbol, new_master_sl, new_master_tp);
+            
+            // For MODIFY_HEDGE command to slave:
+            // slave's SL = master's new TP
+            // slave's TP = master's new SL
+            WriteCommandToSlaveFile("MODIFY_HEDGE", position_ticket_for_sltp_mod, selected_pos_symbol, 0, 0, new_master_tp, new_master_sl); 
+           }
+         else
+           {
+            PrintFormat("OnTradeTransaction: SL/TP modification request for position #%d on symbol %s, but EA is on %s. Ignoring.", 
+                        position_ticket_for_sltp_mod, selected_pos_symbol, _Symbol);
+           }
+        }
+      else
+        {
+         PrintFormat("OnTradeTransaction: SL/TP modification request for position #%d, but position could not be selected.", position_ticket_for_sltp_mod);
+        }
+     }
+}
