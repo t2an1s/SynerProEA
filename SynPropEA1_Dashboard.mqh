@@ -219,33 +219,71 @@ void Dashboard_UpdateStaticInfo(string ea_version, int magic_number, double init
     ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_REAL_TEXT, OBJPROP_TEXT, "0/0");
     ChartRedraw(chart_id);
 }
-void Dashboard_UpdateDynamicInfo(double prop_balance, double prop_equity, double prop_balance_at_day_start, double prop_peak_equity, int prop_current_trading_days, double slave_balance, double slave_equity, double slave_daily_pnl, bool session_active ) {
+void Dashboard_UpdateDynamicInfo(
+    double prop_balance, double prop_equity, 
+    double prop_balance_at_day_start, double prop_peak_equity, int prop_current_trading_days,
+    bool session_active,
+    double master_ea_volume, 
+    double daily_dd_equity_floor_prop, 
+    double daily_dd_limit_dollars_prop, 
+    double static_max_dd_equity_floor_prop, // Not used in example, but available
+    double trailing_max_dd_equity_floor_prop,
+    double max_dd_limit_dollars_prop 
+    // Slave data is now handled by Dashboard_UpdateSlaveStatus
+)
+{
     long chart_id = ChartID(); 
-    color pnl_color = (slave_daily_pnl >= 0) ? COLOR_TEXT_GREEN : COLOR_TEXT_RED; 
-    ObjectSetString(chart_id, OBJ_LIVE_DPNL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(slave_daily_pnl,2)); 
-    ObjectSetInteger(chart_id, OBJ_LIVE_DPNL_PROP_TEXT, OBJPROP_COLOR, pnl_color);
-    ObjectSetString(chart_id, OBJ_LIVE_DPNL_REAL_TEXT, OBJPROP_TEXT, DoubleToString(slave_daily_pnl,2)); 
-    ObjectSetInteger(chart_id, OBJ_LIVE_DPNL_REAL_TEXT, OBJPROP_COLOR, pnl_color);
+    
+    // --- Live Trading Info --- 
+    // Master EA (Prop) Volume
+    ObjectSetString(chart_id, OBJ_LIVE_VOL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(master_ea_volume,2)); 
+
+    // Prop Daily PNL
+    double pnl_prop_daily = prop_equity - prop_balance_at_day_start;
+    color pnl_prop_color = (pnl_prop_daily >= 0) ? COLOR_TEXT_GREEN : COLOR_TEXT_RED; 
+    ObjectSetString(chart_id, OBJ_LIVE_DPNL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(pnl_prop_daily,2)); 
+    ObjectSetInteger(chart_id, OBJ_LIVE_DPNL_PROP_TEXT, OBJPROP_COLOR, pnl_prop_color);
+
+    // Summary PNL (Prop)
+    double summary_pnl_prop = prop_equity - stat_initial_challenge_balance_prop; // From initial balance
+    color summary_pnl_prop_color = (summary_pnl_prop >= 0) ? COLOR_TEXT_GREEN : COLOR_TEXT_RED;
+    ObjectSetString(chart_id, OBJ_LIVE_SPNL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(summary_pnl_prop,2));
+    ObjectSetInteger(chart_id, OBJ_LIVE_SPNL_PROP_TEXT, OBJPROP_COLOR, summary_pnl_prop_color);
+
+    // Trading Days (Prop)
+    ObjectSetString(chart_id, OBJ_LIVE_DAYS_PROP_TEXT, OBJPROP_TEXT, IntegerToString(prop_current_trading_days) + "/" + IntegerToString(stat_min_trading_days_prop_total));
+    // Remove the OBJ_ACC_STAT_MIND_PROP_TEXT as it's a duplicate of OBJ_LIVE_DAYS_PROP_TEXT
+    // ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_PROP_TEXT, OBJPROP_TEXT, IntegerToString(prop_current_trading_days) + "/" + IntegerToString(stat_min_trading_days_prop_total));
+    ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_ROWLABEL_TEXT, OBJPROP_TEXT, "DEPRECATED"); // Mark old label
+    ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_PROP_TEXT, OBJPROP_TEXT, "N/A");
+    ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_REAL_TEXT, OBJPROP_TEXT, "N/A");
+    ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_REM_TEXT, OBJPROP_TEXT, "Moved to Live Info");
+
+
+    // --- Account Status Section (Prop) ---
     ObjectSetString(chart_id, OBJ_ACC_STAT_BAL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(prop_balance,2));
     ObjectSetString(chart_id, OBJ_ACC_STAT_EQ_PROP_TEXT, OBJPROP_TEXT, DoubleToString(prop_equity,2));
-    ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_PROP_TEXT, OBJPROP_TEXT, IntegerToString(prop_current_trading_days) + "/" + IntegerToString(stat_min_trading_days_prop_total));
-    double current_daily_loss_prop = prop_balance_at_day_start - prop_equity;
-    if (current_daily_loss_prop < 0) current_daily_loss_prop = 0; 
-    double remaining_daily_dd_prop = stat_max_daily_dd_abs_prop - current_daily_loss_prop;
-    if (remaining_daily_dd_prop < 0) remaining_daily_dd_prop = 0; 
-    ObjectSetString(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / %.2f", stat_max_daily_dd_abs_prop, remaining_daily_dd_prop));
-    double current_max_drawdown_prop = prop_peak_equity - prop_equity;
-    if (current_max_drawdown_prop < 0) current_max_drawdown_prop = 0; 
-    double remaining_max_dd_prop = stat_max_acc_dd_abs_prop - current_max_drawdown_prop;
-    if (remaining_max_dd_prop < 0) remaining_max_dd_prop = 0; 
-    ObjectSetString(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / %.2f", stat_max_acc_dd_abs_prop, remaining_max_dd_prop));
-    double profit_made_prop = prop_equity - stat_initial_challenge_balance_prop;
-    if (profit_made_prop < 0) profit_made_prop = 0; 
+
+    // Daily DD (Prop)
+    double remaining_daily_dd_prop = prop_equity - daily_dd_equity_floor_prop;
+    // if (remaining_daily_dd_prop < 0) remaining_daily_dd_prop = 0; // Cap at 0 if breached for display
+    ObjectSetString(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / %.2f", daily_dd_limit_dollars_prop, remaining_daily_dd_prop));
+    ObjectSetInteger(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_COLOR, (remaining_daily_dd_prop >=0 ? COLOR_TEXT_DARK : COLOR_TEXT_RED));
+
+    // Max DD (Prop) - Assuming Trailing from Peak Equity for "Remaining"
+    double remaining_max_dd_prop = prop_equity - trailing_max_dd_equity_floor_prop;
+    // if (remaining_max_dd_prop < 0) remaining_max_dd_prop = 0; // Cap at 0 if breached
+    ObjectSetString(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / %.2f", max_dd_limit_dollars_prop, remaining_max_dd_prop));
+    ObjectSetInteger(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_COLOR, (remaining_max_dd_prop >=0 ? COLOR_TEXT_DARK : COLOR_TEXT_RED));
+
+    // Stage Target (Prop)
+    double profit_made_prop = prop_equity - stat_initial_challenge_balance_prop; // Profit from initial challenge balance
+    // if (profit_made_prop < 0) profit_made_prop = 0; 
     double remaining_to_target_prop = stat_stage_target_abs_prop - profit_made_prop;
-    if(remaining_to_target_prop < 0) remaining_to_target_prop = 0; 
+    // if(remaining_to_target_prop < 0) remaining_to_target_prop = 0; 
     ObjectSetString(chart_id, OBJ_ACC_STAT_TGT_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / %.2f", stat_stage_target_abs_prop, remaining_to_target_prop));
-    ObjectSetString(chart_id, OBJ_ACC_STAT_BAL_REAL_TEXT, OBJPROP_TEXT, DoubleToString(slave_balance,2)); 
-    ObjectSetString(chart_id, OBJ_ACC_STAT_EQ_REAL_TEXT, OBJPROP_TEXT, DoubleToString(slave_equity,2)); 
+    ObjectSetInteger(chart_id, OBJ_ACC_STAT_TGT_PROP_TEXT, OBJPROP_COLOR, (remaining_to_target_prop > 0 ? COLOR_TEXT_DARK : COLOR_TEXT_GREEN));
+
     ObjectSetString(chart_id, OBJ_CURRENT_DATETIME_LABEL, OBJPROP_TEXT, TimeToString(TimeTradeServer(), TIME_DATE|TIME_SECONDS) + " Server"); 
     ChartRedraw(chart_id);
 }
@@ -262,7 +300,61 @@ void Dashboard_UpdateStatus(string status_text, bool is_signal_active) {
     }
     ChartRedraw(chart_id);
 }
-void Dashboard_UpdateSlaveStatus( string slave_status_text, double slave_balance, double slave_equity, double slave_daily_pnl, bool slave_connected ) { /* Placeholder */ }
+void Dashboard_UpdateSlaveStatus( 
+    string slave_status_text, 
+    double slave_balance, 
+    double slave_equity, 
+    double slave_daily_pnl, 
+    bool slave_connected,
+    long slave_acc_num,
+    string slave_curr,
+    double slave_volume,
+    int slave_lev,
+    string slave_srv
+    )
+{
+    long chart_id = ChartID();
+
+    // --- Live Trading Info (Slave/Real) ---
+    ObjectSetString(chart_id, OBJ_LIVE_VOL_REAL_TEXT, OBJPROP_TEXT, slave_connected ? DoubleToString(slave_volume,2) : "N/A");
+    
+    color pnl_slave_color = (slave_daily_pnl >= 0) ? COLOR_TEXT_GREEN : COLOR_TEXT_RED;
+    ObjectSetString(chart_id, OBJ_LIVE_DPNL_REAL_TEXT, OBJPROP_TEXT, slave_connected ? DoubleToString(slave_daily_pnl,2) : "N/A"); 
+    ObjectSetInteger(chart_id, OBJ_LIVE_DPNL_REAL_TEXT, OBJPROP_COLOR, pnl_slave_color);
+
+    // Summary PNL (Slave) - This would be slave_equity - slave_initial_balance. We don't have slave_initial_balance from EA2 yet.
+    // For now, let's show N/A or just current PNL if that is what is expected.
+    // Assuming slave_daily_pnl is the main PNL to show for the slave for now.
+    ObjectSetString(chart_id, OBJ_LIVE_SPNL_REAL_TEXT, OBJPROP_TEXT, slave_connected ? DoubleToString(slave_daily_pnl,2) : "N/A"); // Or calculate full summary if initial balance is passed
+    ObjectSetInteger(chart_id, OBJ_LIVE_SPNL_REAL_TEXT, OBJPROP_COLOR, pnl_slave_color);
+
+    // Trading Days (Slave) - Slave doesn't track this, show N/A
+    ObjectSetString(chart_id, OBJ_LIVE_DAYS_REAL_TEXT, OBJPROP_TEXT, "N/A");
+
+    // --- Account Status Section (Slave/Real) ---
+    ObjectSetString(chart_id, OBJ_ACC_STAT_ACC_REAL_TEXT, OBJPROP_TEXT, slave_connected ? IntegerToString(slave_acc_num) : "N/A");
+    ObjectSetString(chart_id, OBJ_ACC_STAT_CURR_REAL_TEXT, OBJPROP_TEXT, slave_connected ? slave_curr : "N/A");
+    ObjectSetString(chart_id, OBJ_ACC_STAT_BAL_REAL_TEXT, OBJPROP_TEXT, slave_connected ? DoubleToString(slave_balance,2) : "N/A"); 
+    ObjectSetString(chart_id, OBJ_ACC_STAT_EQ_REAL_TEXT, OBJPROP_TEXT, slave_connected ? DoubleToString(slave_equity,2) : "N/A"); 
+    ObjectSetString(chart_id, OBJ_ACC_STAT_LEV_REAL_TEXT, OBJPROP_TEXT, slave_connected ? ("1:" + IntegerToString(slave_lev)) : "N/A");
+    ObjectSetString(chart_id, OBJ_ACC_STAT_SERV_REAL_TEXT, OBJPROP_TEXT, slave_connected ? slave_srv : "N/A");
+
+    // DD and Target for slave are not typically tracked by master, show N/A
+    ObjectSetString(chart_id, OBJ_ACC_STAT_DDD_REAL_TEXT, OBJPROP_TEXT, "N/A");
+    ObjectSetString(chart_id, OBJ_ACC_STAT_MDD_REAL_TEXT, OBJPROP_TEXT, "N/A");
+    ObjectSetString(chart_id, OBJ_ACC_STAT_TGT_REAL_TEXT, OBJPROP_TEXT, "N/A");
+
+    // Remarks for Slave connection
+    if (slave_connected) {
+        ObjectSetString(chart_id, OBJ_LIVE_VOL_REM_TEXT, OBJPROP_TEXT, "Slave Conn.");
+        ObjectSetString(chart_id, OBJ_LIVE_DPNL_REM_TEXT, OBJPROP_TEXT, slave_status_text);
+    } else {
+        ObjectSetString(chart_id, OBJ_LIVE_VOL_REM_TEXT, OBJPROP_TEXT, "Slave N/A");
+        ObjectSetString(chart_id, OBJ_LIVE_DPNL_REM_TEXT, OBJPROP_TEXT, slave_status_text);
+    }
+
+    ChartRedraw(chart_id);
+}
 
 // --- Chart Visuals Functions ---
 void ChartVisuals_InitPivots(bool show_visuals, color up_color, color down_color)
