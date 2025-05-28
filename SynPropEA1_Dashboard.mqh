@@ -265,16 +265,20 @@ void Dashboard_UpdateDynamicInfo(
     ObjectSetString(chart_id, OBJ_ACC_STAT_EQ_PROP_TEXT, OBJPROP_TEXT, DoubleToString(prop_equity,2));
 
     // Daily DD (Prop)
-    double remaining_daily_dd_prop = prop_equity - daily_dd_equity_floor_prop;
-    // if (remaining_daily_dd_prop < 0) remaining_daily_dd_prop = 0; // Cap at 0 if breached for display
-    ObjectSetString(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / %.2f", daily_dd_limit_dollars_prop, remaining_daily_dd_prop));
-    ObjectSetInteger(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_COLOR, (remaining_daily_dd_prop >=0 ? COLOR_TEXT_DARK : COLOR_TEXT_RED));
+    double used_daily_dd_prop = prop_balance_at_day_start - prop_equity;
+    double remaining_daily_dd_prop = daily_dd_limit_dollars_prop - used_daily_dd_prop;
+    ObjectSetString(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_TEXT,
+                    StringFormat("%.2f / %.2f", daily_dd_limit_dollars_prop, remaining_daily_dd_prop));
+    ObjectSetInteger(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_COLOR,
+                     (remaining_daily_dd_prop >= 0 ? COLOR_TEXT_DARK : COLOR_TEXT_RED));
 
-    // Max DD (Prop) - Assuming Trailing from Peak Equity for "Remaining"
-    double remaining_max_dd_prop = prop_equity - trailing_max_dd_equity_floor_prop;
-    // if (remaining_max_dd_prop < 0) remaining_max_dd_prop = 0; // Cap at 0 if breached
-    ObjectSetString(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / %.2f", max_dd_limit_dollars_prop, remaining_max_dd_prop));
-    ObjectSetInteger(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_COLOR, (remaining_max_dd_prop >=0 ? COLOR_TEXT_DARK : COLOR_TEXT_RED));
+    // Max DD (Prop) based on peak equity
+    double used_max_dd_prop = prop_peak_equity - prop_equity;
+    double remaining_max_dd_prop = max_dd_limit_dollars_prop - used_max_dd_prop;
+    ObjectSetString(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_TEXT,
+                    StringFormat("%.2f / %.2f", max_dd_limit_dollars_prop, remaining_max_dd_prop));
+    ObjectSetInteger(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_COLOR,
+                     (remaining_max_dd_prop >= 0 ? COLOR_TEXT_DARK : COLOR_TEXT_RED));
 
     // Stage Target (Prop)
     double profit_made_prop = prop_equity - stat_initial_challenge_balance_prop; // Profit from initial challenge balance
