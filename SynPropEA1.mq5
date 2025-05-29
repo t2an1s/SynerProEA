@@ -1,11 +1,16 @@
 // SynPropEA1.mq5
 #property copyright "t2an1s"
 #property link      "https://github.com/t2an1s/SynerProEA"
-#property version   "1.04" // Updated version
+#property version   "1.00"
 #property strict
 #property description "Master EA for Synergy Strategy - Prop Account"
 
+#include <Trade\Trade.mqh>
+#include <Trade\SymbolInfo.mqh>
+#include <Trade\PositionInfo.mqh>
+#include <Trade\AccountInfo.mqh>
 #include "SynPropEA1_Dashboard.mqh" 
+#include "../SynPropEA_AccountLink.mqh"  // Using relative path
 
 // --- Global Variables & Inputs ---
 // File Names
@@ -25,7 +30,7 @@ input int    InpPyramidingMaxOrders = 1; // Max orders for pyramiding (1 = no py
 
 
 // Challenge Parameters (Static Limits for Prop Account)
-input double InpChallengeCost     = 700.0; 
+input double InpChallengeCost     = 500.0; 
 input int    InpChallengeStages   = 1;     
 input double InpStageTargetProfitDollars = 1000.0; 
 input double InpMaxAccountDDLimitDollars = 4000.0; 
@@ -141,6 +146,12 @@ string   g_csv_delimiter = ","; // Using comma as per initial plan, ensure consi
 double   g_slave_open_volume = 0.0;
 int      g_slave_leverage = 0;
 string   g_slave_server = "N/A";
+
+// New Daily Drawdown Variables (based on user script model)
+int      g_dd_last_day_check;              // Tracks TimeDay() for resetting daily DD variables
+double   g_daily_dd_peak_value;            // Peak MathMax(Equity,Balance) observed today for DD calculation
+double   g_current_daily_drawdown_value;   // Current $ drawdown from g_daily_dd_peak_value
+bool     g_daily_dd_warning_alert_issued;  // Flag to ensure warning alert is issued only once per day
 
 //+------------------------------------------------------------------+
 void UpdateEAOpenPositionsState()
@@ -296,7 +307,7 @@ bool IsInTradingSession()
            }
         }
      }
-   if((session1_str == "" && session2_str == "") || in_session1 || in_session2)
+   if(((session1_str == "" && session2_str == "") || in_session1) || in_session2)
      {
       PrintFormat("IsInTradingSession: RESULT = true (Session1 Active: %s, Session2 Active: %s, Or No Sessions Defined For Day)", 
                   in_session1 ? "Yes":"No", in_session2 ? "Yes":"No");
@@ -612,7 +623,7 @@ bool OpenTrade(int signal_type, double lot_size, double sl_price, double tp_pric
    if(tp_price > 0) request.tp = NormalizeDouble(tp_price, g_digits_value);
 
    double current_price_for_check = request.price; 
-   double min_stop_level_points = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+   double min_stop_level_points = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
    double min_stop_level_price_units = min_stop_level_points * g_point_value;
 
    if(request.sl != 0 && g_point_value > 0) // Check g_point_value to prevent division by zero if not initialized
@@ -667,10 +678,20 @@ int OnInit()
    
    // Removed shared path logic, FILE_COMMON handles this.
    Print("File operations for inter-EA communication will use the common shared directory (FILE_COMMON).");
-
+   
    g_point_value = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
    g_digits_value = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
    g_ea_version_str = "1.04"; 
+
+   // Validate account linking
+   long account_number = AccountInfoInteger(ACCOUNT_LOGIN);
+   string server = AccountInfoString(ACCOUNT_SERVER);
+   
+   if(!IsAccountLinked(account_number, server, InpMagicNumber)) {
+       Print("WARNING: This account is not linked to any slave account. Please set up account linking first.");
+       g_slave_status_text = "Not Linked";
+       g_slave_is_connected = false;
+   }
 
    h_adx_main = iADX(_Symbol, _Period, InpADX_Period);
    if(h_adx_main == INVALID_HANDLE)
@@ -688,10 +709,22 @@ int OnInit()
 
 
    if(InpPropStartBalanceOverride > 0.0) g_initial_challenge_balance_prop = InpPropStartBalanceOverride;
-   else g_initial_challenge_balance_prop = AccountInfoDouble(ACCOUNT_BALANCE);
+   else g_initial_challenge_balance_prop = AccountInfoDouble(ACCOUNT_BALANCE); // Initial challenge balance can be just balance
    
-   g_prop_balance_at_day_start = AccountInfoDouble(ACCOUNT_BALANCE); 
-   g_prop_highest_equity_peak = MathMax(AccountInfoDouble(ACCOUNT_EQUITY), g_initial_challenge_balance_prop); 
+   // Initialize daily values
+   MqlDateTime dt_init_for_dd; TimeToStruct(TimeCurrent(), dt_init_for_dd);
+   g_dd_last_day_check = dt_init_for_dd.day_of_year; // Initialize with day of year
+
+   double current_equity_init = AccountInfoDouble(ACCOUNT_EQUITY);
+   double current_balance_init = AccountInfoDouble(ACCOUNT_BALANCE);
+   g_prop_balance_at_day_start = MathMax(current_equity_init, current_balance_init); // Max(E,B) at actual start of day
+   g_daily_dd_peak_value = g_prop_balance_at_day_start; // Initial daily peak is the start value
+
+   g_prop_highest_equity_peak = MathMax(current_equity_init, g_initial_challenge_balance_prop); // For overall Max DD
+   
+   g_current_daily_drawdown_value = 0.0;
+   g_daily_dd_warning_alert_issued = false;
+   
    g_prop_current_trading_days = 0;
    MqlDateTime temp_dt; TimeToStruct(TimeCurrent(),temp_dt); temp_dt.hour=0; temp_dt.min=0; temp_dt.sec=0;
    g_last_day_for_daily_reset = StructToTime(temp_dt); 
@@ -714,7 +747,7 @@ int OnInit()
    string init_msg_part1 = program_name_str + " (Master) Initialized. EA Version: " + g_ea_version_str + ", Build: " + IntegerToString(__MQL5BUILD__);
    string init_msg_part2 = ". Initial Prop Balance for Dash: " + DoubleToString(g_initial_challenge_balance_prop, 2);
    Print(init_msg_part1 + init_msg_part2); // Consolidated print statement
-
+   
    prev_HA_Bias_Oscillator_Value = 0; 
    biasChangedToBullish_MQL = false;
    biasChangedToBearish_MQL = false;
@@ -724,8 +757,8 @@ int OnInit()
    double daily_dd_limit_pct = 0.0, max_acc_dd_pct = 0.0, stage_target_pct = 0.0;
    if (g_initial_challenge_balance_prop > 0) 
      {
-      daily_dd_limit_pct = (InpDailyDDLimitDollars / g_initial_challenge_balance_prop) * 100.0;
-      max_acc_dd_pct     = (InpMaxAccountDDLimitDollars / g_initial_challenge_balance_prop) * 100.0;
+      // daily_dd_limit_pct and max_acc_dd_pct are no longer primary for static info if direct dollar amounts are used.
+      // They were calculated for Dashboard_UpdateStaticInfo, but we now pass dollar amounts directly.
       stage_target_pct   = (InpStageTargetProfitDollars / g_initial_challenge_balance_prop) * 100.0;
      }
 
@@ -733,8 +766,8 @@ int OnInit()
       g_ea_version_str,              
       InpMagicNumber,                 
       g_initial_challenge_balance_prop, 
-      daily_dd_limit_pct,             
-      max_acc_dd_pct,                 
+      InpDailyDDLimitDollars,         // <-- New Argument (now daily_dd_limit_dollars_from_input)
+      InpMaxAccountDDLimitDollars,    // <-- New Argument (now max_account_dd_dollars_from_input)
       stage_target_pct,               
       InpMinTradingDaysTotal_Prop,    
       _Symbol,                        
@@ -770,40 +803,113 @@ void OnTick()
       isNewBar = true;
      }
 
-   UpdateEAOpenPositionsState(); // Update count and type of EA's open positions for this symbol
+   UpdateEAOpenPositionsState(); 
 
-   MqlDateTime current_day_struct; TimeToStruct(TimeCurrent(), current_day_struct);
-   current_day_struct.hour=0; current_day_struct.min=0; current_day_struct.sec=0;
-   datetime current_day_start = StructToTime(current_day_struct);
-
-   if(current_day_start > g_last_day_for_daily_reset)
+   // --- Daily Reset Logic (Enhanced for new DD calculation) ---
+   MqlDateTime dt_tick_day_check; TimeToStruct(TimeCurrent(), dt_tick_day_check);
+   int current_day_of_year = dt_tick_day_check.day_of_year;
+   // The MQL_TESTER specific check for TimeDay() vs TimeDayOfYear() is removed as day_of_year is now consistently used.
+   
+   if(current_day_of_year != g_dd_last_day_check) // Check if it's a new day for DD purposes
      {
-      g_prop_balance_at_day_start = AccountInfoDouble(ACCOUNT_BALANCE);
-      g_last_day_for_daily_reset = current_day_start;
-      Print("New day detected. Daily DD Balance Start updated to: ", g_prop_balance_at_day_start);
+      g_dd_last_day_check = current_day_of_year;
+      double current_equity_reset = AccountInfoDouble(ACCOUNT_EQUITY);
+      double current_balance_reset = AccountInfoDouble(ACCOUNT_BALANCE);
+      g_prop_balance_at_day_start = MathMax(current_equity_reset, current_balance_reset); // For general daily P/L tracking
+      g_daily_dd_peak_value = g_prop_balance_at_day_start;       // Reset daily peak to current max(E,B)
+      g_current_daily_drawdown_value = 0.0;                     // Reset current drawdown value
+      g_daily_dd_warning_alert_issued = false;                  // Reset warning flag for the new day
+      PrintFormat("New Day for DD Tracking: DayOfYear %d. Daily Start Value (Max(E,B)): %.2f. Daily Peak Reset to: %.2f", 
+                  g_dd_last_day_check, g_prop_balance_at_day_start, g_daily_dd_peak_value);
+      
+      // Existing daily reset for g_last_day_for_daily_reset (used for unique trading day count) can remain if its timing is preferred for that specific feature
+      // For DD specifically, we use g_dd_last_day_check.
+      MqlDateTime current_day_struct_other; TimeToStruct(TimeCurrent(), current_day_struct_other);
+      current_day_struct_other.hour=0; current_day_struct_other.min=0; current_day_struct_other.sec=0;
+      datetime current_day_start_other = StructToTime(current_day_struct_other);
+      if(current_day_start_other > g_last_day_for_daily_reset)
+        {
+         g_last_day_for_daily_reset = current_day_start_other;
+         // The g_prop_balance_at_day_start is already updated above with MathMax, so this specific line might be redundant or adjusted
+         Print("Original New Day Reset also triggered for g_last_day_for_daily_reset.");
+        }
      }
-   g_prop_highest_equity_peak = MathMax(g_prop_highest_equity_peak, AccountInfoDouble(ACCOUNT_EQUITY));
+
+   // --- Daily Drawdown Calculation (New Trailing DD Logic) ---
+   double current_equity = AccountInfoDouble(ACCOUNT_EQUITY);
+   double current_balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double current_account_value_for_dd = MathMax(current_equity, current_balance);
+
+   if (current_account_value_for_dd > g_daily_dd_peak_value)
+     {
+      g_daily_dd_peak_value = current_account_value_for_dd;
+     }
+   g_current_daily_drawdown_value = MathMax(0, g_daily_dd_peak_value - current_account_value_for_dd);
+
+   // --- Update g_prop_highest_equity_peak (for overall Max Account DD, this is separate from daily peak) ---
+   g_prop_highest_equity_peak = MathMax(g_prop_highest_equity_peak, current_equity); 
    
    string current_status_msg = "Monitoring..."; 
    int signal = 0; 
    is_session_active = IsInTradingSession(); 
 
-   // --- Daily Drawdown Check for Master EA ---   
+   // --- Daily Drawdown Breach Check (Using new g_current_daily_drawdown_value) ---   
    bool daily_dd_breached = false;
-   double daily_dd_floor = g_prop_balance_at_day_start - InpDailyDDLimitDollars;
-   if(AccountInfoDouble(ACCOUNT_EQUITY) <= daily_dd_floor)
+   if(g_current_daily_drawdown_value >= InpDailyDDLimitDollars && InpDailyDDLimitDollars > 0) // Check InpDailyDDLimitDollars > 0 to prevent false breach if limit is 0
      {
       daily_dd_breached = true;
-      current_status_msg = StringFormat("Daily DD Limit Hit! Equity %.2f <= Floor %.2f. No new trades.", 
-                                       AccountInfoDouble(ACCOUNT_EQUITY), daily_dd_floor);
+      current_status_msg = StringFormat("Daily DD Limit Hit! DD $%.2f (Peak $%.2f) >= Limit $%.2f. No new trades.", 
+                                       g_current_daily_drawdown_value, g_daily_dd_peak_value, InpDailyDDLimitDollars);
       Print(current_status_msg);
-      // No new signals will be processed if breached. 
-      // Existing trades are managed by SL/TP or manual intervention.
+     }
+   else
+     { // Check for 90% warning only if not already breached
+      bool approaching_dd_limit = (!daily_dd_breached && InpDailyDDLimitDollars > 0 && 
+                                   g_current_daily_drawdown_value > 0 && 
+                                   g_current_daily_drawdown_value >= InpDailyDDLimitDollars * 0.9);
+      if (approaching_dd_limit && !g_daily_dd_warning_alert_issued)
+        {
+         string msg = StringFormat("DD WARNING: Daily Drawdown $%.2f (from peak $%.2f) is approaching limit $%.2f (%.0f%% of limit reached!)",
+                                   g_current_daily_drawdown_value, g_daily_dd_peak_value, InpDailyDDLimitDollars,
+                                   (InpDailyDDLimitDollars > 0 ? (g_current_daily_drawdown_value / InpDailyDDLimitDollars) * 100.0 : 0) );
+         Alert(msg);
+         Print(msg);
+         g_daily_dd_warning_alert_issued = true; // Set flag to prevent repeated alerts for the same day
+        }
      }
 
    // --- Process Slave Status File ---
    ProcessSlaveStatusFile();
    // --- End Process Slave Status File ---
+
+   // --- Calculate values for Dashboard_UpdateDynamicInfo ---
+   double calculated_prop_realized_daily_pnl = 0;
+   double calculated_prop_floating_pnl = 0;
+   double calculated_prop_daily_costs = 0;
+   datetime today_start_server_time = iTime(_Symbol, PERIOD_D1, 0); // Midnight server time
+
+   for(int d = HistoryDealsTotal() - 1; d >= 0; d--){
+       ulong deal_ticket = HistoryDealGetTicket(d);
+       if(HistoryDealGetInteger(deal_ticket, DEAL_TIME) >= today_start_server_time) {
+           calculated_prop_realized_daily_pnl += HistoryDealGetDouble(deal_ticket, DEAL_PROFIT);
+           calculated_prop_daily_costs += HistoryDealGetDouble(deal_ticket, DEAL_SWAP) + HistoryDealGetDouble(deal_ticket, DEAL_COMMISSION);
+       }
+       else {
+           break; // Deals are sorted by time, no need to check further
+       }
+   }
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--){
+       ulong ticket = PositionGetTicket(i);
+       if(PositionSelectByTicket(ticket)) {
+           if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber && PositionGetString(POSITION_SYMBOL) == _Symbol) {
+               calculated_prop_floating_pnl += PositionGetDouble(POSITION_PROFIT);
+           }
+       }
+   }
+   double calculated_prop_free_margin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+   // --- End Calculate values for Dashboard_UpdateDynamicInfo ---
+
 
    if(Bars(_Symbol, _Period) < g_min_bars_needed_for_ea && MQLInfoInteger(MQL_TESTER)==false) 
      {
@@ -960,12 +1066,25 @@ void OnTick()
       // Update dashboard status based on whether we are actively looking for a trade signal
       bool can_look_for_trade = is_session_active && InpAllowTrades && 
                                 (g_ea_open_positions_count < InpPyramidingMaxOrders || 
-                                (g_ea_open_positions_count > 0 && signal !=0 && 
-                                 ((signal == 1 && g_ea_open_positions_type == ORDER_TYPE_BUY) || (signal == -1 && g_ea_open_positions_type == ORDER_TYPE_SELL))
-                                ) && !daily_dd_breached) ; // Added daily_dd_breached check
+                                ((g_ea_open_positions_count > 0 && signal != 0) && 
+                                 ((signal == 1 && g_ea_open_positions_type == ORDER_TYPE_BUY) || 
+                                  (signal == -1 && g_ea_open_positions_type == ORDER_TYPE_SELL))
+                                )) && !daily_dd_breached; // Added parentheses for clarity
       Dashboard_UpdateStatus(current_status_msg, (signal != 0 && can_look_for_trade) ); 
-      Dashboard_UpdateSlaveStatus(g_slave_status_text, g_slave_balance, g_slave_equity, g_slave_daily_pnl, g_slave_is_connected, 
-                                 g_slave_account_number, g_slave_account_currency, g_slave_open_volume, g_slave_leverage, g_slave_server);
+      
+      // Corrected parameter order and types for Dashboard_UpdateSlaveStatus
+      Dashboard_UpdateSlaveStatus(
+            g_slave_is_connected,                    // bool is_slave_connected
+            g_slave_status_text,                     // string status_from_slave_file
+            g_slave_account_number,                  // long actual_slave_acc_num
+            g_slave_account_currency,                // string actual_slave_curr
+            g_slave_balance,                         // double actual_slave_balance
+            g_slave_equity,                          // double actual_slave_equity
+            g_slave_daily_pnl,                       // double actual_slave_daily_pnl
+            g_slave_open_volume,                     // double actual_slave_volume
+            g_slave_leverage,                        // int actual_slave_lev
+            g_slave_server                           // string actual_slave_srv
+      ); // Removed g_slave_status_text and g_slave_open_volume as they are not params in the current dashboard function
      } 
     else if (Bars(_Symbol, _Period) >= g_min_bars_needed_for_ea && !isNewBar) 
      {
@@ -973,8 +1092,9 @@ void OnTick()
         if (!is_session_active) { current_status_msg = "Session Inactive"; }
         else if (!InpAllowTrades) { current_status_msg = "Trading Disabled"; }
         else if (daily_dd_breached) { 
-            current_status_msg = StringFormat("Daily DD Limit Hit! Equity %.2f <= Floor %.2f. No new trades.", 
-                                          AccountInfoDouble(ACCOUNT_EQUITY), daily_dd_floor);
+            // Use the same message format as the new bar DD breach check for consistency
+            current_status_msg = StringFormat("Daily DD Limit Hit! DD $%.2f (Peak $%.2f) >= Limit $%.2f. No new trades.", 
+                                          g_current_daily_drawdown_value, g_daily_dd_peak_value, InpDailyDDLimitDollars);
         }
         else if (g_ea_open_positions_count >= InpPyramidingMaxOrders) { current_status_msg = "Max Orders Open"; }
         else if (g_ea_open_positions_count > 0) { current_status_msg = StringFormat("Position Open (%s)", EnumToString(g_ea_open_positions_type));}
@@ -982,18 +1102,47 @@ void OnTick()
         Dashboard_UpdateStatus(current_status_msg, false); // Not actively signaling on non-new-bar
      }
 
+   // Calculate total master volume before calling Dashboard_UpdateDynamicInfo
+   double total_master_volume = 0.0;
+   if(g_ea_open_positions_count > 0) {
+       for(int i = PositionsTotal() - 1; i >= 0; i--) {
+           ulong pos_ticket_vol = PositionGetTicket(i);
+           if(PositionSelectByTicket(pos_ticket_vol)) {
+               if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber && PositionGetString(POSITION_SYMBOL) == _Symbol) {
+                   total_master_volume += PositionGetDouble(POSITION_VOLUME);
+               }
+           }
+       }
+   }
+
    Dashboard_UpdateDynamicInfo(
-      AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY),
-      g_prop_balance_at_day_start, g_prop_highest_equity_peak, g_prop_current_trading_days,    
-      // Slave data now passed via Dashboard_UpdateSlaveStatus
-      is_session_active,
-      // Add master EA's volume
-      g_ea_open_positions_count > 0 ? PositionGetDouble(POSITION_VOLUME) : 0.0,
-      daily_dd_floor, // Pass the calculated daily DD floor for display
-      InpDailyDDLimitDollars, // Pass the limit itself
-      g_initial_challenge_balance_prop - InpMaxAccountDDLimitDollars, // Static Max DD Floor
-      g_prop_highest_equity_peak - InpMaxAccountDDLimitDollars, // Trailing Max DD Floor from Peak
-      InpMaxAccountDDLimitDollars // Pass the Max DD limit itself
+      AccountInfoDouble(ACCOUNT_BALANCE),                     // prop_balance
+      AccountInfoDouble(ACCOUNT_EQUITY),                      // prop_equity
+      g_prop_balance_at_day_start,                            // prop_balance_at_day_start (Max(E,B) at day start)
+      g_prop_highest_equity_peak,                             // prop_peak_equity (Highest equity for overall Max Account DD)
+      g_prop_current_trading_days,                            // prop_current_trading_days
+      is_session_active,                                      // session_active
+      total_master_volume,                                    // master_ea_volume
+      g_daily_dd_peak_value - InpDailyDDLimitDollars,         // daily_dd_equity_floor_prop (Equity level for daily DD breach from daily peak)
+      InpDailyDDLimitDollars,                                 // daily_dd_limit_dollars_prop
+      g_initial_challenge_balance_prop - InpMaxAccountDDLimitDollars, // static_max_dd_equity_floor_prop
+      g_prop_highest_equity_peak - InpMaxAccountDDLimitDollars,     // trailing_max_dd_equity_floor_prop (from overall peak equity)
+      InpMaxAccountDDLimitDollars,                                // max_dd_limit_dollars_prop
+      // New parameters from guide
+      calculated_prop_realized_daily_pnl,
+      calculated_prop_floating_pnl,
+      calculated_prop_daily_costs,
+      calculated_prop_free_margin
+   );
+
+   // Update Cost Recovery Info
+   Dashboard_UpdateCostRecoveryInfo(
+      g_current_daily_drawdown_value,                         // prop_daily_dd_loss
+      calculated_prop_realized_daily_pnl,                     // real_daily_profit
+      MathMax(0, g_prop_highest_equity_peak - current_equity), // prop_max_dd_loss
+      calculated_prop_realized_daily_pnl + calculated_prop_floating_pnl, // real_total_profit
+      InpChallengeCost,                                       // challenge_cost
+      InpMaxAccountDDLimitDollars                            // max_dd_limit
    );
 
    string comment_str;
@@ -1430,7 +1579,7 @@ void WriteCommandToSlaveFile(string command_type, ulong master_ticket,
      }
 
    long current_time_long = TimeCurrent();
-   string timestamp_to_write_str = IntegerToString(current_time_long);
+   string timestamp_to_write_str = (string)current_time_long; 
    FileWrite(g_common_command_file_handle, timestamp_to_write_str); 
    PrintFormat("DEBUG EA1: Timestamp string written to file: '%s' (Raw long was: %d)", timestamp_to_write_str, current_time_long);
 
