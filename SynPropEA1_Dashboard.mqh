@@ -1,3 +1,6 @@
+#property copyright "t2an1s"
+#property link      "https://github.com/t2an1s/SynerProEA"
+
 // SynPropEA1_Dashboard.mqh
 
 // --- Structs ---
@@ -39,9 +42,9 @@ struct CombinedPivotVisual {
 #define COL_REAL_ACC_WIDTH 100   
 #define COL_REMARKS_WIDTH 110    
 
-#define ROW_STD_HEIGHT 18
-#define ROW_HEADER_HEIGHT 20
-#define TEXT_PADDING 5           
+#define ROW_STD_HEIGHT 16        // Changed from 18
+#define ROW_HEADER_HEIGHT 18     // Changed from 20
+#define TEXT_PADDING 3           // Changed from 5
 
 // --- Static variables to store calculated limits & initial values ---
 static double stat_initial_challenge_balance_prop = 0;
@@ -55,7 +58,6 @@ static int    stat_min_trading_days_prop_total = 0;
 #define OBJ_TOP_LIC_BG     DASH_PREFIX + "TopLicBg"
 #define OBJ_TOP_LIC_LABEL  DASH_PREFIX + "TopLicLabel"
 #define OBJ_TOP_LIC_VALUE  DASH_PREFIX + "TopLicValue"
-#define OBJ_TOP_VER_VALUE  DASH_PREFIX + "TopVerValue"
 #define OBJ_TOP_WMODE_VALUE DASH_PREFIX + "TopWModeValue"
 #define OBJ_TOP_STATUS_VALUE DASH_PREFIX + "TopStatusValue"
 #define OBJ_CURRENT_DATETIME_LABEL DASH_PREFIX + "CurrentDateTimeLabel" 
@@ -86,6 +88,12 @@ static int    stat_min_trading_days_prop_total = 0;
 #define OBJ_LIVE_DAYS_PROP_TEXT     DASH_PREFIX + "LiveDaysPropText"
 #define OBJ_LIVE_DAYS_REAL_TEXT     DASH_PREFIX + "LiveDaysRealText"
 #define OBJ_LIVE_DAYS_REM_TEXT      DASH_PREFIX + "LiveDaysRemText"
+// New constants for Swaps & Commission row
+#define OBJ_LIVE_COSTS_ROWLABEL_TEXT DASH_PREFIX + "LiveCostsRLText"
+#define OBJ_LIVE_COSTS_PROP_TEXT     DASH_PREFIX + "LiveCostsPropText"
+#define OBJ_LIVE_COSTS_REAL_TEXT     DASH_PREFIX + "LiveCostsRealText"
+#define OBJ_LIVE_COSTS_REM_TEXT      DASH_PREFIX + "LiveCostsRemText"
+
 // Account Status Section Headers
 #define OBJ_ACC_STAT_HEADER_BG      DASH_PREFIX + "AccStatHeaderBg"
 #define OBJ_ACC_STAT_HEADER_TITLE   DASH_PREFIX + "AccStatHeaderTitle" 
@@ -93,14 +101,10 @@ static int    stat_min_trading_days_prop_total = 0;
 #define OBJ_ACC_STAT_HEADER_REAL    DASH_PREFIX + "AccStatHeaderReal"
 #define OBJ_ACC_STAT_HEADER_REMARKS DASH_PREFIX + "AccStatHeaderRemarks"
 // Account Status - Rows 
-#define OBJ_ACC_STAT_ACC_ROWLABEL_TEXT  DASH_PREFIX + "AccStatAccRLText"
+#define OBJ_ACC_STAT_ACC_ROWLABEL_TEXT  DASH_PREFIX + "AccStatAccRLText"  // Will be "Account / Currency"
 #define OBJ_ACC_STAT_ACC_PROP_TEXT      DASH_PREFIX + "AccStatAccPropText"
 #define OBJ_ACC_STAT_ACC_REAL_TEXT      DASH_PREFIX + "AccStatAccRealText"
 #define OBJ_ACC_STAT_ACC_REM_TEXT       DASH_PREFIX + "AccStatAccRemText"
-#define OBJ_ACC_STAT_CURR_ROWLABEL_TEXT DASH_PREFIX + "AccStatCurrRLText"
-#define OBJ_ACC_STAT_CURR_PROP_TEXT     DASH_PREFIX + "AccStatCurrPropText"
-#define OBJ_ACC_STAT_CURR_REAL_TEXT     DASH_PREFIX + "AccStatCurrRealText"
-#define OBJ_ACC_STAT_CURR_REM_TEXT      DASH_PREFIX + "AccStatCurrRemText"
 #define OBJ_ACC_STAT_BAL_ROWLABEL_TEXT  DASH_PREFIX + "AccStatBalRLText"
 #define OBJ_ACC_STAT_BAL_PROP_TEXT      DASH_PREFIX + "AccStatBalPropText"
 #define OBJ_ACC_STAT_BAL_REAL_TEXT      DASH_PREFIX + "AccStatBalRealText"
@@ -109,14 +113,10 @@ static int    stat_min_trading_days_prop_total = 0;
 #define OBJ_ACC_STAT_EQ_PROP_TEXT       DASH_PREFIX + "AccStatEqPropText"
 #define OBJ_ACC_STAT_EQ_REAL_TEXT       DASH_PREFIX + "AccStatEqRealText"
 #define OBJ_ACC_STAT_EQ_REM_TEXT        DASH_PREFIX + "AccStatEqRemText"
-#define OBJ_ACC_STAT_LEV_ROWLABEL_TEXT  DASH_PREFIX + "AccStatLevRLText"
+#define OBJ_ACC_STAT_LEV_ROWLABEL_TEXT  DASH_PREFIX + "AccStatLevRLText" // Will be "Leverage / Server"
 #define OBJ_ACC_STAT_LEV_PROP_TEXT      DASH_PREFIX + "AccStatLevPropText"
 #define OBJ_ACC_STAT_LEV_REAL_TEXT      DASH_PREFIX + "AccStatLevRealText"
 #define OBJ_ACC_STAT_LEV_REM_TEXT       DASH_PREFIX + "AccStatLevRemText"
-#define OBJ_ACC_STAT_SERV_ROWLABEL_TEXT DASH_PREFIX + "AccStatServRLText"
-#define OBJ_ACC_STAT_SERV_PROP_TEXT     DASH_PREFIX + "AccStatServPropText"
-#define OBJ_ACC_STAT_SERV_REAL_TEXT     DASH_PREFIX + "AccStatServRealText"
-#define OBJ_ACC_STAT_SERV_REM_TEXT      DASH_PREFIX + "AccStatServRemText"
 #define OBJ_ACC_STAT_DDD_ROWLABEL_TEXT  DASH_PREFIX + "AccStatDDDRLText"
 #define OBJ_ACC_STAT_DDD_PROP_TEXT      DASH_PREFIX + "AccStatDDDPropText"
 #define OBJ_ACC_STAT_DDD_REAL_TEXT      DASH_PREFIX + "AccStatDDDRealText"
@@ -133,6 +133,28 @@ static int    stat_min_trading_days_prop_total = 0;
 #define OBJ_ACC_STAT_MIND_PROP_TEXT     DASH_PREFIX + "AccStatMinDPropText"
 #define OBJ_ACC_STAT_MIND_REAL_TEXT     DASH_PREFIX + "AccStatMinDRealText"
 #define OBJ_ACC_STAT_MIND_REM_TEXT      DASH_PREFIX + "AccStatMinDRemText"
+#define OBJ_ACC_STAT_FMAR_ROWLABEL_TEXT DASH_PREFIX + "AccStatFMarRLText"
+#define OBJ_ACC_STAT_FMAR_PROP_TEXT     DASH_PREFIX + "AccStatFMarPropText"
+#define OBJ_ACC_STAT_FMAR_REAL_TEXT     DASH_PREFIX + "AccStatFMarRealText"
+#define OBJ_ACC_STAT_FMAR_REM_TEXT      DASH_PREFIX + "AccStatFMarRemText"
+
+// Cost Recovery Section Headers
+#define OBJ_COST_REC_HEADER_BG      DASH_PREFIX + "CostRecHeaderBg"
+#define OBJ_COST_REC_HEADER_TITLE   DASH_PREFIX + "CostRecHeaderTitle"
+#define OBJ_COST_REC_HEADER_LOSS    DASH_PREFIX + "CostRecHeaderLoss"
+#define OBJ_COST_REC_HEADER_PROFIT  DASH_PREFIX + "CostRecHeaderProfit"
+#define OBJ_COST_REC_HEADER_REC     DASH_PREFIX + "CostRecHeaderRec"
+
+// Cost Recovery Rows
+#define OBJ_COST_REC_DD_ROWLABEL_TEXT  DASH_PREFIX + "CostRecDDRLText"
+#define OBJ_COST_REC_DD_LOSS_TEXT      DASH_PREFIX + "CostRecDDLossText"
+#define OBJ_COST_REC_DD_PROFIT_TEXT    DASH_PREFIX + "CostRecDDProfitText"
+#define OBJ_COST_REC_DD_REC_TEXT       DASH_PREFIX + "CostRecDDRecText"
+
+#define OBJ_COST_REC_MAX_ROWLABEL_TEXT DASH_PREFIX + "CostRecMaxRLText"
+#define OBJ_COST_REC_MAX_LOSS_TEXT     DASH_PREFIX + "CostRecMaxLossText"
+#define OBJ_COST_REC_MAX_PROFIT_TEXT   DASH_PREFIX + "CostRecMaxProfitText"
+#define OBJ_COST_REC_MAX_REC_TEXT      DASH_PREFIX + "CostRecMaxRecText"
 
 // --- Helper Functions ---
 void CreateRectangle(long chart_id, string name, int x, int y, int width, int height, color bgColor, int z_order = 0){ ObjectDelete(chart_id, name); if(ObjectCreate(chart_id, name, OBJ_RECTANGLE_LABEL, 0, 0, 0)) { ObjectSetInteger(chart_id, name, OBJPROP_XDISTANCE, x); ObjectSetInteger(chart_id, name, OBJPROP_YDISTANCE, y); ObjectSetInteger(chart_id, name, OBJPROP_XSIZE, width); ObjectSetInteger(chart_id, name, OBJPROP_YSIZE, height); ObjectSetInteger(chart_id, name, OBJPROP_BGCOLOR, bgColor); ObjectSetInteger(chart_id, name, OBJPROP_COLOR, bgColor); ObjectSetInteger(chart_id, name, OBJPROP_BORDER_TYPE, BORDER_FLAT); ObjectSetInteger(chart_id, name, OBJPROP_ZORDER, z_order); ObjectSetInteger(chart_id, name, OBJPROP_BACK, true); } else { Print("!!! Failed to create rectangle: ", name, ". Error: ", GetLastError()); } }
@@ -149,8 +171,7 @@ void Dashboard_Init() {
     int acc_status_total_width = live_trading_total_width;
     int dt_x = int(ChartGetInteger(current_chart_id, CHART_WIDTH_IN_PIXELS) - 150 - DASH_START_X); 
     CreateText(current_chart_id, OBJ_CURRENT_DATETIME_LABEL, "YYYY-MM-DD HH:MM:SS", dt_x, DASH_START_Y - ROW_STD_HEIGHT - 2, COLOR_TEXT_DARK, 8, "Arial", ANCHOR_RIGHT); 
-    CreateRectangle(current_chart_id, OBJ_TOP_LIC_BG, current_x, current_y, total_dash_width_top_info, ROW_STD_HEIGHT, COLOR_BG_YELLOW); CreateText(current_chart_id, OBJ_TOP_LIC_LABEL, "License Type", current_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT); CreateText(current_chart_id, OBJ_TOP_LIC_VALUE, "...", current_x + COL_LABEL_WIDTH + TEXT_PADDING*2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
-    CreateRectangle(current_chart_id, DASH_PREFIX + "TopVerBg", current_x, current_y, total_dash_width_top_info, ROW_STD_HEIGHT, COLOR_BG_YELLOW); CreateText(current_chart_id, DASH_PREFIX + "TopVerLabel", "Version", current_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT); CreateText(current_chart_id, OBJ_TOP_VER_VALUE, "...", current_x + COL_LABEL_WIDTH + TEXT_PADDING*2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
+    CreateRectangle(current_chart_id, OBJ_TOP_LIC_BG, current_x, current_y, total_dash_width_top_info, ROW_STD_HEIGHT, COLOR_BG_YELLOW); CreateText(current_chart_id, OBJ_TOP_LIC_LABEL, "License / Version", current_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT); CreateText(current_chart_id, OBJ_TOP_LIC_VALUE, "...", current_x + COL_LABEL_WIDTH + TEXT_PADDING*2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     CreateRectangle(current_chart_id, DASH_PREFIX + "TopStatusBg", current_x, current_y, total_dash_width_top_info, ROW_STD_HEIGHT, COLOR_BG_GREEN); CreateText(current_chart_id, DASH_PREFIX + "TopStatusLabel", "Status", current_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT); CreateText(current_chart_id, OBJ_TOP_STATUS_VALUE, "Initializing...", current_x + COL_LABEL_WIDTH + TEXT_PADDING*2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     CreateRectangle(current_chart_id, DASH_PREFIX + "TopWModeBg", current_x, current_y, total_dash_width_top_info, ROW_STD_HEIGHT, COLOR_BG_ORANGE); CreateText(current_chart_id, DASH_PREFIX + "TopWModeLabel", "Working mode", current_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT); CreateText(current_chart_id, OBJ_TOP_WMODE_VALUE, "...", current_x + COL_LABEL_WIDTH + TEXT_PADDING*2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT); current_y += ROW_STD_HEIGHT + TEXT_PADDING; 
     current_x = DASH_START_X; 
@@ -165,6 +186,7 @@ void Dashboard_Init() {
     cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveDPNLRLBg", cell_x, current_y, COL_LABEL_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_DPNL_ROWLABEL_TEXT, "Daily PnL (Prop/Real)", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, live_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveDPNLPropBg", cell_x, current_y, COL_PROP_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_DPNL_PROP_TEXT, "0.00", cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_BLUE, 9, "Arial", ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveDPNLRealBg", cell_x, current_y, COL_REAL_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_DPNL_REAL_TEXT, "0.00", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_BLUE, 9, "Arial", ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveDPNLRemBg", cell_x, current_y, COL_REMARKS_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_DPNL_REM_TEXT, "...", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, live_info_row_label_fontsize,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveSPNLRLBg", cell_x, current_y, COL_LABEL_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_SPNL_ROWLABEL_TEXT, "Summary PnL (Prop/Real)", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, live_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveSPNLPropBg", cell_x, current_y, COL_PROP_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_SPNL_PROP_TEXT, "0.00", cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_BLUE, 9, "Arial", ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveSPNLRealBg", cell_x, current_y, COL_REAL_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_SPNL_REAL_TEXT, "0.00", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_BLUE, 9, "Arial", ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveSPNLRemBg", cell_x, current_y, COL_REMARKS_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_SPNL_REM_TEXT, "...", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, live_info_row_label_fontsize,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveSwapRLBg", cell_x, current_y, COL_LABEL_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_SWAP_ROWLABEL_TEXT, "Swaps (Prop/Real)", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, live_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveSwapPropBg", cell_x, current_y, COL_PROP_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_SWAP_PROP_TEXT, "0.00", cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveSwapRealBg", cell_x, current_y, COL_REAL_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_SWAP_REAL_TEXT, "0.00", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveSwapRemBg", cell_x, current_y, COL_REMARKS_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_SWAP_REM_TEXT, "...", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, live_info_row_label_fontsize,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
+    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveCostsRLBg", cell_x, current_y, COL_LABEL_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_COSTS_ROWLABEL_TEXT, "Swaps & Comm (P/R)", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, live_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveCostsPropBg", cell_x, current_y, COL_PROP_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_COSTS_PROP_TEXT, "0.00", cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveCostsRealBg", cell_x, current_y, COL_REAL_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_COSTS_REAL_TEXT, "N/A", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveCostsRemBg", cell_x, current_y, COL_REMARKS_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_COSTS_REM_TEXT, "...", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, live_info_row_label_fontsize,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveDaysRLBg", cell_x, current_y, COL_LABEL_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_DAYS_ROWLABEL_TEXT, "Trading Days (Prop/Real)", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, live_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveDaysPropBg", cell_x, current_y, COL_PROP_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_DAYS_PROP_TEXT, "0/0", cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveDaysRealBg", cell_x, current_y, COL_REAL_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_DAYS_REAL_TEXT, "0/0", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"LiveDaysRemBg", cell_x, current_y, COL_REMARKS_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_LIVE_DAYS_REM_TEXT, "...", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, live_info_row_label_fontsize,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     current_y += TEXT_PADDING; 
     current_x = DASH_START_X; 
@@ -176,43 +198,103 @@ void Dashboard_Init() {
     CreateText(current_chart_id, OBJ_ACC_STAT_HEADER_REMARKS, "Remarks", cell_x + COL_REMARKS_WIDTH/2, current_y + ROW_HEADER_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER); current_y += ROW_HEADER_HEIGHT;
     int acc_info_row_label_fontsize = 8; 
     string placeholder_val = "..."; string placeholder_num = "0.00"; string placeholder_dd = placeholder_num + " / " + placeholder_num; string placeholder_days = "0/0";
-    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Acc_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_ACC_ROWLABEL_TEXT, "Account", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Acc_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_ACC_PROP_TEXT, placeholder_val, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Acc_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_ACC_REAL_TEXT, placeholder_val, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Acc_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_ACC_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
-    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Curr_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_CURR_ROWLABEL_TEXT, "Currency", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Curr_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_CURR_PROP_TEXT, placeholder_val, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Curr_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_CURR_REAL_TEXT, placeholder_val, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Curr_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_CURR_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
+    string placeholder_target_pnl = "0.00 / 0.00";
+    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Acc_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_ACC_ROWLABEL_TEXT, "Account / Currency", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Acc_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_ACC_PROP_TEXT, placeholder_val, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Acc_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_ACC_REAL_TEXT, placeholder_val, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Acc_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_ACC_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Bal_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_BAL_ROWLABEL_TEXT, "Balance", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Bal_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_BAL_PROP_TEXT, placeholder_num, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Bal_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_BAL_REAL_TEXT, placeholder_num, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Bal_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_BAL_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
-    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Eq_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_EQ_ROWLABEL_TEXT, "Equity", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Eq_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_EQ_PROP_TEXT, placeholder_num, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Eq_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_EQ_REAL_TEXT, placeholder_num, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Eq_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_EQ_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
-    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Lev_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_LEV_ROWLABEL_TEXT, "Leverage", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Lev_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_LEV_PROP_TEXT, "1:...", cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Lev_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_LEV_REAL_TEXT, "1:...", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Lev_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_LEV_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
-    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Serv_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_SERV_ROWLABEL_TEXT, "Server", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Serv_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_SERV_PROP_TEXT, placeholder_val, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Serv_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_SERV_REAL_TEXT, placeholder_val, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Serv_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_SERV_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
+    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Eq_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_EQ_ROWLABEL_TEXT, "Equity", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Eq_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_EQ_PROP_TEXT, placeholder_num, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Eq_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_EQ_REAL_TEXT, placeholder_num, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Eq_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_EQ_REM_TEXT, "+0.00", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
+    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_FMar_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_FMAR_ROWLABEL_TEXT, "Free Margin", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_FMar_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_FMAR_PROP_TEXT, placeholder_num, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_FMar_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_FMAR_REAL_TEXT, "N/A", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_FMar_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_FMAR_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
+    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Lev_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_LEV_ROWLABEL_TEXT, "Leverage / Server", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Lev_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_LEV_PROP_TEXT, "1:... @ ...", cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Lev_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_LEV_REAL_TEXT, "1:... @ ...", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Lev_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_LEV_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_DDD_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_DDD_ROWLABEL_TEXT, "Daily DD ($ Limit / Rem)", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_DDD_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, placeholder_dd, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 8,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_DDD_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_DDD_REAL_TEXT, placeholder_dd, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 8,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_DDD_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_DDD_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_MDD_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_MDD_ROWLABEL_TEXT, "Max Acc DD ($ Limit / Rem)", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_MDD_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, placeholder_dd, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 8,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_MDD_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_MDD_REAL_TEXT, placeholder_dd, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 8,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_MDD_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_MDD_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
-    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Tgt_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_TGT_ROWLABEL_TEXT, "Stage Target ($ Abs / Rem)", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Tgt_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_TGT_PROP_TEXT, placeholder_dd, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 8,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Tgt_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_TGT_REAL_TEXT, placeholder_dd, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 8,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Tgt_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_TGT_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
+    cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Tgt_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_TGT_ROWLABEL_TEXT, "Stage Target ($ Abs / Rem)", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Tgt_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_TGT_PROP_TEXT, placeholder_target_pnl, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 8,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Tgt_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_TGT_REAL_TEXT, placeholder_target_pnl, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 8,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_Tgt_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_TGT_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     cell_x = current_x; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_MinD_LBLBG", cell_x,current_y,COL_LABEL_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_MIND_ROWLABEL_TEXT, "Min Days (Current/Total)", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize,"Arial",ANCHOR_LEFT); cell_x += COL_LABEL_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_MinD_PropBG", cell_x,current_y,COL_PROP_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_MIND_PROP_TEXT, placeholder_days, cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_MinD_RealBG", cell_x,current_y,COL_REAL_ACC_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_MIND_REAL_TEXT, placeholder_days, cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_CENTER); cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING; CreateRectangle(current_chart_id, DASH_PREFIX+"AS_MinD_RemBG", cell_x,current_y,COL_REMARKS_WIDTH,ROW_STD_HEIGHT,COLOR_BG_LIGHT_PURPLE); CreateText(current_chart_id, OBJ_ACC_STAT_MIND_REM_TEXT, placeholder_val, cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9,"Arial",ANCHOR_LEFT); current_y += ROW_STD_HEIGHT;
     current_y += TEXT_PADDING; 
+    
+    // After Account Status section, add Cost Recovery section
+    current_y += TEXT_PADDING;
+    current_x = DASH_START_X;
+    
+    // Cost Recovery Header
+    CreateRectangle(current_chart_id, OBJ_COST_REC_HEADER_BG, current_x, current_y, acc_status_total_width, ROW_HEADER_HEIGHT, COLOR_BG_YELLOW);
+    cell_x = current_x;
+    CreateText(current_chart_id, OBJ_COST_REC_HEADER_TITLE, "Cost Recovery Estimate", cell_x + COL_LABEL_WIDTH/2, current_y + ROW_HEADER_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER);
+    cell_x += COL_LABEL_WIDTH + TEXT_PADDING;
+    CreateText(current_chart_id, OBJ_COST_REC_HEADER_LOSS, "Loss on Prop", cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_HEADER_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER);
+    cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING;
+    CreateText(current_chart_id, OBJ_COST_REC_HEADER_PROFIT, "Profit on Real", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_HEADER_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER);
+    cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING;
+    CreateText(current_chart_id, OBJ_COST_REC_HEADER_REC, "Recovery", cell_x + COL_REMARKS_WIDTH/2, current_y + ROW_HEADER_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_CENTER);
+    current_y += ROW_HEADER_HEIGHT;
+
+    // Daily DD Row
+    cell_x = current_x;
+    CreateRectangle(current_chart_id, DASH_PREFIX+"CostRecDDRLBg", cell_x, current_y, COL_LABEL_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE);
+    CreateText(current_chart_id, OBJ_COST_REC_DD_ROWLABEL_TEXT, "Daily DD", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize, "Arial", ANCHOR_LEFT);
+    cell_x += COL_LABEL_WIDTH + TEXT_PADDING;
+    CreateRectangle(current_chart_id, DASH_PREFIX+"CostRecDDLossBg", cell_x, current_y, COL_PROP_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE);
+    CreateText(current_chart_id, OBJ_COST_REC_DD_LOSS_TEXT, "-0.00", cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_RED, 9, "Arial", ANCHOR_CENTER);
+    cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING;
+    CreateRectangle(current_chart_id, DASH_PREFIX+"CostRecDDProfitBg", cell_x, current_y, COL_REAL_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE);
+    CreateText(current_chart_id, OBJ_COST_REC_DD_PROFIT_TEXT, "0.00", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_GREEN, 9, "Arial", ANCHOR_CENTER);
+    cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING;
+    CreateRectangle(current_chart_id, DASH_PREFIX+"CostRecDDRecBg", cell_x, current_y, COL_REMARKS_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE);
+    CreateText(current_chart_id, OBJ_COST_REC_DD_REC_TEXT, "0.0 %", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT);
+    current_y += ROW_STD_HEIGHT;
+
+    // Max DD Row
+    cell_x = current_x;
+    CreateRectangle(current_chart_id, DASH_PREFIX+"CostRecMaxRLBg", cell_x, current_y, COL_LABEL_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE);
+    CreateText(current_chart_id, OBJ_COST_REC_MAX_ROWLABEL_TEXT, "Max DD", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, acc_info_row_label_fontsize, "Arial", ANCHOR_LEFT);
+    cell_x += COL_LABEL_WIDTH + TEXT_PADDING;
+    CreateRectangle(current_chart_id, DASH_PREFIX+"CostRecMaxLossBg", cell_x, current_y, COL_PROP_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE);
+    CreateText(current_chart_id, OBJ_COST_REC_MAX_LOSS_TEXT, "-0.00", cell_x + COL_PROP_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_RED, 9, "Arial", ANCHOR_CENTER);
+    cell_x += COL_PROP_ACC_WIDTH + TEXT_PADDING;
+    CreateRectangle(current_chart_id, DASH_PREFIX+"CostRecMaxProfitBg", cell_x, current_y, COL_REAL_ACC_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE);
+    CreateText(current_chart_id, OBJ_COST_REC_MAX_PROFIT_TEXT, "0.00", cell_x + COL_REAL_ACC_WIDTH/2, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_GREEN, 9, "Arial", ANCHOR_CENTER);
+    cell_x += COL_REAL_ACC_WIDTH + TEXT_PADDING;
+    CreateRectangle(current_chart_id, DASH_PREFIX+"CostRecMaxRecBg", cell_x, current_y, COL_REMARKS_WIDTH, ROW_STD_HEIGHT, COLOR_BG_LIGHT_PURPLE);
+    CreateText(current_chart_id, OBJ_COST_REC_MAX_REC_TEXT, "0.0 %", cell_x + TEXT_PADDING, current_y + ROW_STD_HEIGHT/2, COLOR_TEXT_DARK, 9, "Arial", ANCHOR_LEFT);
+    current_y += ROW_STD_HEIGHT;
+    
     ChartRedraw(current_chart_id);
     Print("Dashboard_Init: Account Status section completed.");
 }
 void Dashboard_Deinit() { ObjectsDeleteAll(ChartID(), DASH_PREFIX); ChartRedraw(ChartID()); }
-void Dashboard_UpdateStaticInfo(string ea_version, int magic_number, double initial_challenge_balance_prop, double daily_dd_limit_pct_prop, double max_account_dd_pct_prop, double stage_target_pct_prop, int min_trading_days_prop, string symbol = "", string timeframe = "", double challenge_cost = 0 ) {
+void Dashboard_UpdateStaticInfo(string ea_version, int magic_number, double initial_challenge_balance_prop, 
+                                double daily_dd_limit_dollars_from_input,
+                                double max_account_dd_dollars_from_input,
+                                double stage_target_pct_prop, int min_trading_days_prop, 
+                                string symbol = "", string timeframe = "", double challenge_cost = 0 ) {
     long chart_id = ChartID(); 
-    ObjectSetString(chart_id, OBJ_TOP_LIC_VALUE, OBJPROP_TEXT, "TESTER"); 
-    ObjectSetString(chart_id, OBJ_TOP_VER_VALUE, OBJPROP_TEXT, ea_version);
+    ObjectSetString(chart_id, OBJ_TOP_LIC_VALUE, OBJPROP_TEXT, "TESTER / " + ea_version); 
     ObjectSetString(chart_id, OBJ_TOP_WMODE_VALUE, OBJPROP_TEXT, "Prop (Auto)");
     ObjectSetString(chart_id, OBJ_CURRENT_DATETIME_LABEL, OBJPROP_TEXT, TimeToString(TimeTradeServer(), TIME_DATE|TIME_SECONDS) + " Server"); 
     stat_initial_challenge_balance_prop = initial_challenge_balance_prop; 
     stat_min_trading_days_prop_total = min_trading_days_prop; 
-    ObjectSetString(chart_id, OBJ_ACC_STAT_ACC_PROP_TEXT, OBJPROP_TEXT, StringFormat("%d", (int)AccountInfoInteger(ACCOUNT_LOGIN)));
-    ObjectSetString(chart_id, OBJ_ACC_STAT_CURR_PROP_TEXT, OBJPROP_TEXT, AccountInfoString(ACCOUNT_CURRENCY));
-    ObjectSetString(chart_id, OBJ_ACC_STAT_LEV_PROP_TEXT, OBJPROP_TEXT, "1:"+IntegerToString(AccountInfoInteger(ACCOUNT_LEVERAGE)));
-    ObjectSetString(chart_id, OBJ_ACC_STAT_SERV_PROP_TEXT, OBJPROP_TEXT, AccountInfoString(ACCOUNT_SERVER));
+    string acc_prop_str = StringFormat("%d (%s)", (int)AccountInfoInteger(ACCOUNT_LOGIN), AccountInfoString(ACCOUNT_CURRENCY));
+    ObjectSetString(chart_id, OBJ_ACC_STAT_ACC_PROP_TEXT, OBJPROP_TEXT, acc_prop_str);
+    string lev_serv_prop_str = "1:" + IntegerToString(AccountInfoInteger(ACCOUNT_LEVERAGE)) + " @ " + AccountInfoString(ACCOUNT_SERVER);
+    ObjectSetString(chart_id, OBJ_ACC_STAT_LEV_PROP_TEXT, OBJPROP_TEXT, lev_serv_prop_str);
     ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_PROP_TEXT, OBJPROP_TEXT, "0/" + IntegerToString(stat_min_trading_days_prop_total)); 
-    stat_max_daily_dd_abs_prop = stat_initial_challenge_balance_prop * daily_dd_limit_pct_prop / 100.0;
-    stat_max_acc_dd_abs_prop = stat_initial_challenge_balance_prop * max_account_dd_pct_prop / 100.0;
-    double profit_target_abs = stat_initial_challenge_balance_prop * stage_target_pct_prop / 100.0;
+    
+    // Correctly assign dollar limits from inputs
+    stat_max_daily_dd_abs_prop = daily_dd_limit_dollars_from_input; 
+    stat_max_acc_dd_abs_prop = max_account_dd_dollars_from_input;  
+    
+    double profit_target_abs = initial_challenge_balance_prop * stage_target_pct_prop / 100.0;
     stat_stage_target_abs_prop = profit_target_abs; 
+
+    // Initialize new fields
+    ObjectSetString(chart_id, OBJ_LIVE_COSTS_PROP_TEXT, OBJPROP_TEXT, "0.00");
+    ObjectSetString(chart_id, OBJ_LIVE_COSTS_REAL_TEXT, OBJPROP_TEXT, "N/A");
+    ObjectSetString(chart_id, OBJ_ACC_STAT_FMAR_PROP_TEXT, OBJPROP_TEXT, "0.00");
+    ObjectSetString(chart_id, OBJ_ACC_STAT_FMAR_REAL_TEXT, OBJPROP_TEXT, "N/A");
+
     ObjectSetString(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / ...", stat_max_daily_dd_abs_prop));
     ObjectSetString(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / ...", stat_max_acc_dd_abs_prop));
-    ObjectSetString(chart_id, OBJ_ACC_STAT_TGT_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / ...", stat_stage_target_abs_prop)); 
-    ObjectSetString(chart_id, OBJ_ACC_STAT_ACC_REAL_TEXT, OBJPROP_TEXT, "N/A");
-    ObjectSetString(chart_id, OBJ_ACC_STAT_CURR_REAL_TEXT, OBJPROP_TEXT, "N/A");
+    ObjectSetString(chart_id, OBJ_ACC_STAT_TGT_PROP_TEXT, OBJPROP_TEXT, StringFormat("... / %.2f", stat_stage_target_abs_prop));
+    ObjectSetString(chart_id, OBJ_ACC_STAT_ACC_REAL_TEXT, OBJPROP_TEXT, "N/A (N/A)"); // Placeholder for combined
+    ObjectSetString(chart_id, OBJ_ACC_STAT_LEV_REAL_TEXT, OBJPROP_TEXT, "N/A @ N/A"); // Placeholder for combined
     ObjectSetString(chart_id, OBJ_ACC_STAT_DDD_REAL_TEXT, OBJPROP_TEXT, "0.00 / 0.00");
     ObjectSetString(chart_id, OBJ_ACC_STAT_MDD_REAL_TEXT, OBJPROP_TEXT, "0.00 / 0.00");
     ObjectSetString(chart_id, OBJ_ACC_STAT_TGT_REAL_TEXT, OBJPROP_TEXT, "0.00 / 0.00");
@@ -228,7 +310,12 @@ void Dashboard_UpdateDynamicInfo(
     double daily_dd_limit_dollars_prop, 
     double static_max_dd_equity_floor_prop, // Not used in example, but available
     double trailing_max_dd_equity_floor_prop,
-    double max_dd_limit_dollars_prop 
+    double max_dd_limit_dollars_prop, 
+    // New parameters based on guide
+    double prop_realized_daily_pnl,
+    double prop_floating_pnl,
+    double prop_daily_costs,
+    double prop_free_margin
     // Slave data is now handled by Dashboard_UpdateSlaveStatus
 )
 {
@@ -236,24 +323,27 @@ void Dashboard_UpdateDynamicInfo(
     
     // --- Live Trading Info --- 
     // Master EA (Prop) Volume
-    ObjectSetString(chart_id, OBJ_LIVE_VOL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(master_ea_volume,2)); 
-
+    ObjectSetString(chart_id, OBJ_LIVE_VOL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(master_ea_volume,2));
+ 
     // Prop Daily PNL
-    double pnl_prop_daily = prop_equity - prop_balance_at_day_start;
-    color pnl_prop_color = (pnl_prop_daily >= 0) ? COLOR_TEXT_GREEN : COLOR_TEXT_RED; 
-    ObjectSetString(chart_id, OBJ_LIVE_DPNL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(pnl_prop_daily,2)); 
+    double pnl_prop_daily_total = prop_realized_daily_pnl + prop_floating_pnl;
+    color pnl_prop_color = (pnl_prop_daily_total >= 0) ? COLOR_TEXT_GREEN : COLOR_TEXT_RED; 
+    ObjectSetString(chart_id, OBJ_LIVE_DPNL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(pnl_prop_daily_total,2)); 
     ObjectSetInteger(chart_id, OBJ_LIVE_DPNL_PROP_TEXT, OBJPROP_COLOR, pnl_prop_color);
-
+ 
     // Summary PNL (Prop)
-    double summary_pnl_prop = prop_equity - stat_initial_challenge_balance_prop; // From initial balance
-    color summary_pnl_prop_color = (summary_pnl_prop >= 0) ? COLOR_TEXT_GREEN : COLOR_TEXT_RED;
-    ObjectSetString(chart_id, OBJ_LIVE_SPNL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(summary_pnl_prop,2));
+    double current_summary_pnl_prop = prop_balance - stat_initial_challenge_balance_prop; // From initial balance, using current BALANCE
+    color summary_pnl_prop_color = (current_summary_pnl_prop >= 0) ? COLOR_TEXT_GREEN : COLOR_TEXT_RED;
+    string summary_pnl_prop_str = StringFormat("%.2f / %.2f", current_summary_pnl_prop, stat_stage_target_abs_prop);
+    ObjectSetString(chart_id, OBJ_LIVE_SPNL_PROP_TEXT, OBJPROP_TEXT, summary_pnl_prop_str);
     ObjectSetInteger(chart_id, OBJ_LIVE_SPNL_PROP_TEXT, OBJPROP_COLOR, summary_pnl_prop_color);
-
+ 
+    // Swaps & Commission (Prop)
+    ObjectSetString(chart_id, OBJ_LIVE_COSTS_PROP_TEXT, OBJPROP_TEXT, DoubleToString(prop_daily_costs,2));
+ 
     // Trading Days (Prop)
     ObjectSetString(chart_id, OBJ_LIVE_DAYS_PROP_TEXT, OBJPROP_TEXT, IntegerToString(prop_current_trading_days) + "/" + IntegerToString(stat_min_trading_days_prop_total));
     // Remove the OBJ_ACC_STAT_MIND_PROP_TEXT as it's a duplicate of OBJ_LIVE_DAYS_PROP_TEXT
-    // ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_PROP_TEXT, OBJPROP_TEXT, IntegerToString(prop_current_trading_days) + "/" + IntegerToString(stat_min_trading_days_prop_total));
     ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_ROWLABEL_TEXT, OBJPROP_TEXT, "DEPRECATED"); // Mark old label
     ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_PROP_TEXT, OBJPROP_TEXT, "N/A");
     ObjectSetString(chart_id, OBJ_ACC_STAT_MIND_REAL_TEXT, OBJPROP_TEXT, "N/A");
@@ -263,28 +353,24 @@ void Dashboard_UpdateDynamicInfo(
     // --- Account Status Section (Prop) ---
     ObjectSetString(chart_id, OBJ_ACC_STAT_BAL_PROP_TEXT, OBJPROP_TEXT, DoubleToString(prop_balance,2));
     ObjectSetString(chart_id, OBJ_ACC_STAT_EQ_PROP_TEXT, OBJPROP_TEXT, DoubleToString(prop_equity,2));
+    ObjectSetString(chart_id, OBJ_ACC_STAT_EQ_REM_TEXT, OBJPROP_TEXT, "+0.00");
 
+    // Free Margin (Prop)
+    ObjectSetString(chart_id, OBJ_ACC_STAT_FMAR_PROP_TEXT, OBJPROP_TEXT, DoubleToString(prop_free_margin,2));
+ 
     // Daily DD (Prop)
-    double used_daily_dd_prop = prop_balance_at_day_start - prop_equity;
-    double remaining_daily_dd_prop = daily_dd_limit_dollars_prop - used_daily_dd_prop;
-    ObjectSetString(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_TEXT,
-                    StringFormat("%.2f / %.2f", daily_dd_limit_dollars_prop, remaining_daily_dd_prop));
-    ObjectSetInteger(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_COLOR,
-                     (remaining_daily_dd_prop >= 0 ? COLOR_TEXT_DARK : COLOR_TEXT_RED));
+    double remaining_daily_dd_prop = prop_equity - daily_dd_equity_floor_prop;
+    ObjectSetString(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / %.2f", daily_dd_limit_dollars_prop, remaining_daily_dd_prop));
+    ObjectSetInteger(chart_id, OBJ_ACC_STAT_DDD_PROP_TEXT, OBJPROP_COLOR, (remaining_daily_dd_prop >=0 ? COLOR_TEXT_DARK : COLOR_TEXT_RED));
 
-    // Max DD (Prop) based on peak equity
-    double used_max_dd_prop = prop_peak_equity - prop_equity;
-    double remaining_max_dd_prop = max_dd_limit_dollars_prop - used_max_dd_prop;
-    ObjectSetString(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_TEXT,
-                    StringFormat("%.2f / %.2f", max_dd_limit_dollars_prop, remaining_max_dd_prop));
-    ObjectSetInteger(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_COLOR,
-                     (remaining_max_dd_prop >= 0 ? COLOR_TEXT_DARK : COLOR_TEXT_RED));
+    // Max DD (Prop) - Assuming Trailing from Peak Equity for "Remaining"
+    double remaining_max_dd_prop = prop_equity - trailing_max_dd_equity_floor_prop;
+    ObjectSetString(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / %.2f", max_dd_limit_dollars_prop, remaining_max_dd_prop));
+    ObjectSetInteger(chart_id, OBJ_ACC_STAT_MDD_PROP_TEXT, OBJPROP_COLOR, (remaining_max_dd_prop >=0 ? COLOR_TEXT_DARK : COLOR_TEXT_RED));
 
     // Stage Target (Prop)
     double profit_made_prop = prop_equity - stat_initial_challenge_balance_prop; // Profit from initial challenge balance
-    // if (profit_made_prop < 0) profit_made_prop = 0; 
     double remaining_to_target_prop = stat_stage_target_abs_prop - profit_made_prop;
-    // if(remaining_to_target_prop < 0) remaining_to_target_prop = 0; 
     ObjectSetString(chart_id, OBJ_ACC_STAT_TGT_PROP_TEXT, OBJPROP_TEXT, StringFormat("%.2f / %.2f", stat_stage_target_abs_prop, remaining_to_target_prop));
     ObjectSetInteger(chart_id, OBJ_ACC_STAT_TGT_PROP_TEXT, OBJPROP_COLOR, (remaining_to_target_prop > 0 ? COLOR_TEXT_DARK : COLOR_TEXT_GREEN));
 
@@ -305,43 +391,47 @@ void Dashboard_UpdateStatus(string status_text, bool is_signal_active) {
     ChartRedraw(chart_id);
 }
 void Dashboard_UpdateSlaveStatus( 
-    string slave_status_text, 
-    double slave_balance, 
-    double slave_equity, 
-    double slave_daily_pnl, 
-    bool slave_connected,
-    long slave_acc_num,
-    string slave_curr,
-    double slave_volume,
-    int slave_lev,
-    string slave_srv
+    bool is_slave_connected,
+    string status_from_slave_file,
+    long actual_slave_acc_num,
+    string actual_slave_curr,
+    double actual_slave_balance,
+    double actual_slave_equity,
+    double actual_slave_daily_pnl,
+    double actual_slave_volume,
+    int actual_slave_lev,
+    string actual_slave_srv
     )
 {
     long chart_id = ChartID();
 
     // --- Live Trading Info (Slave/Real) ---
-    ObjectSetString(chart_id, OBJ_LIVE_VOL_REAL_TEXT, OBJPROP_TEXT, slave_connected ? DoubleToString(slave_volume,2) : "N/A");
+    ObjectSetString(chart_id, OBJ_LIVE_VOL_REAL_TEXT, OBJPROP_TEXT, is_slave_connected ? DoubleToString(actual_slave_volume,2) : "N/A");
     
-    color pnl_slave_color = (slave_daily_pnl >= 0) ? COLOR_TEXT_GREEN : COLOR_TEXT_RED;
-    ObjectSetString(chart_id, OBJ_LIVE_DPNL_REAL_TEXT, OBJPROP_TEXT, slave_connected ? DoubleToString(slave_daily_pnl,2) : "N/A"); 
+    color pnl_slave_color = (actual_slave_daily_pnl >= 0) ? COLOR_TEXT_GREEN : COLOR_TEXT_RED;
+    ObjectSetString(chart_id, OBJ_LIVE_DPNL_REAL_TEXT, OBJPROP_TEXT, is_slave_connected ? DoubleToString(actual_slave_daily_pnl,2) : "N/A"); 
     ObjectSetInteger(chart_id, OBJ_LIVE_DPNL_REAL_TEXT, OBJPROP_COLOR, pnl_slave_color);
 
     // Summary PNL (Slave) - This would be slave_equity - slave_initial_balance. We don't have slave_initial_balance from EA2 yet.
     // For now, let's show N/A or just current PNL if that is what is expected.
     // Assuming slave_daily_pnl is the main PNL to show for the slave for now.
-    ObjectSetString(chart_id, OBJ_LIVE_SPNL_REAL_TEXT, OBJPROP_TEXT, slave_connected ? DoubleToString(slave_daily_pnl,2) : "N/A"); // Or calculate full summary if initial balance is passed
+    ObjectSetString(chart_id, OBJ_LIVE_SPNL_REAL_TEXT, OBJPROP_TEXT, is_slave_connected ? DoubleToString(actual_slave_daily_pnl,2) : "N/A"); // Or calculate full summary if initial balance is passed
     ObjectSetInteger(chart_id, OBJ_LIVE_SPNL_REAL_TEXT, OBJPROP_COLOR, pnl_slave_color);
 
     // Trading Days (Slave) - Slave doesn't track this, show N/A
     ObjectSetString(chart_id, OBJ_LIVE_DAYS_REAL_TEXT, OBJPROP_TEXT, "N/A");
 
     // --- Account Status Section (Slave/Real) ---
-    ObjectSetString(chart_id, OBJ_ACC_STAT_ACC_REAL_TEXT, OBJPROP_TEXT, slave_connected ? IntegerToString(slave_acc_num) : "N/A");
-    ObjectSetString(chart_id, OBJ_ACC_STAT_CURR_REAL_TEXT, OBJPROP_TEXT, slave_connected ? slave_curr : "N/A");
-    ObjectSetString(chart_id, OBJ_ACC_STAT_BAL_REAL_TEXT, OBJPROP_TEXT, slave_connected ? DoubleToString(slave_balance,2) : "N/A"); 
-    ObjectSetString(chart_id, OBJ_ACC_STAT_EQ_REAL_TEXT, OBJPROP_TEXT, slave_connected ? DoubleToString(slave_equity,2) : "N/A"); 
-    ObjectSetString(chart_id, OBJ_ACC_STAT_LEV_REAL_TEXT, OBJPROP_TEXT, slave_connected ? ("1:" + IntegerToString(slave_lev)) : "N/A");
-    ObjectSetString(chart_id, OBJ_ACC_STAT_SERV_REAL_TEXT, OBJPROP_TEXT, slave_connected ? slave_srv : "N/A");
+    string acc_curr_real_str = "N/A";
+    if(is_slave_connected) acc_curr_real_str = IntegerToString(actual_slave_acc_num) + " (" + actual_slave_curr + ")";
+    ObjectSetString(chart_id, OBJ_ACC_STAT_ACC_REAL_TEXT, OBJPROP_TEXT, acc_curr_real_str);
+
+    ObjectSetString(chart_id, OBJ_ACC_STAT_BAL_REAL_TEXT, OBJPROP_TEXT, is_slave_connected ? DoubleToString(actual_slave_balance,2) : "N/A"); 
+    ObjectSetString(chart_id, OBJ_ACC_STAT_EQ_REAL_TEXT, OBJPROP_TEXT, is_slave_connected ? DoubleToString(actual_slave_equity,2) : "N/A"); 
+
+    string lev_serv_real_str = "N/A";
+    if(is_slave_connected) lev_serv_real_str = "1:" + IntegerToString(actual_slave_lev) + " @ " + actual_slave_srv;
+    ObjectSetString(chart_id, OBJ_ACC_STAT_LEV_REAL_TEXT, OBJPROP_TEXT, lev_serv_real_str);
 
     // DD and Target for slave are not typically tracked by master, show N/A
     ObjectSetString(chart_id, OBJ_ACC_STAT_DDD_REAL_TEXT, OBJPROP_TEXT, "N/A");
@@ -349,12 +439,12 @@ void Dashboard_UpdateSlaveStatus(
     ObjectSetString(chart_id, OBJ_ACC_STAT_TGT_REAL_TEXT, OBJPROP_TEXT, "N/A");
 
     // Remarks for Slave connection
-    if (slave_connected) {
+    if (is_slave_connected) {
         ObjectSetString(chart_id, OBJ_LIVE_VOL_REM_TEXT, OBJPROP_TEXT, "Slave Conn.");
-        ObjectSetString(chart_id, OBJ_LIVE_DPNL_REM_TEXT, OBJPROP_TEXT, slave_status_text);
+        ObjectSetString(chart_id, OBJ_LIVE_DPNL_REM_TEXT, OBJPROP_TEXT, status_from_slave_file);
     } else {
         ObjectSetString(chart_id, OBJ_LIVE_VOL_REM_TEXT, OBJPROP_TEXT, "Slave N/A");
-        ObjectSetString(chart_id, OBJ_LIVE_DPNL_REM_TEXT, OBJPROP_TEXT, slave_status_text);
+        ObjectSetString(chart_id, OBJ_LIVE_DPNL_REM_TEXT, OBJPROP_TEXT, status_from_slave_file); // Show last known or error status
     }
 
     ChartRedraw(chart_id);
@@ -513,3 +603,41 @@ void ChartVisuals_UpdatePivots(const PivotPoint &pivots_h_const[], const PivotPo
 void ChartVisuals_InitMarketBias(bool show_visuals, color up_color, color down_color) { /* Placeholder */ } 
 void ChartVisuals_DeinitMarketBias() { string pf=DASH_PREFIX+"MarketBias"; ObjectsDeleteAll(ChartID(),pf,0,-1); ChartRedraw(ChartID());} 
 void ChartVisuals_UpdateMarketBias(double v, bool s) { /* Placeholder */ }
+
+//+------------------------------------------------------------------+
+//| Update Cost Recovery Info                                          |
+//+------------------------------------------------------------------+
+void Dashboard_UpdateCostRecoveryInfo(
+    double prop_daily_dd_loss,
+    double real_daily_profit,
+    double prop_max_dd_loss,
+    double real_total_profit,
+    double challenge_cost,
+    double max_dd_limit
+) {
+    long chart_id = ChartID();
+    
+    // Update Daily DD row
+    ObjectSetString(chart_id, OBJ_COST_REC_DD_LOSS_TEXT, OBJPROP_TEXT, DoubleToString(prop_daily_dd_loss, 2));
+    ObjectSetString(chart_id, OBJ_COST_REC_DD_PROFIT_TEXT, OBJPROP_TEXT, DoubleToString(real_daily_profit, 2));
+    
+    // Calculate and update Daily DD Recovery %
+    double daily_recovery_pct = 0.0;
+    if(prop_daily_dd_loss > 0) {
+        daily_recovery_pct = (real_daily_profit / prop_daily_dd_loss) * 100.0;
+    }
+    ObjectSetString(chart_id, OBJ_COST_REC_DD_REC_TEXT, OBJPROP_TEXT, DoubleToString(daily_recovery_pct, 1) + " %");
+    
+    // Update Max DD row
+    ObjectSetString(chart_id, OBJ_COST_REC_MAX_LOSS_TEXT, OBJPROP_TEXT, DoubleToString(prop_max_dd_loss, 2));
+    ObjectSetString(chart_id, OBJ_COST_REC_MAX_PROFIT_TEXT, OBJPROP_TEXT, DoubleToString(real_total_profit, 2));
+    
+    // Calculate and update Max DD Recovery %
+    double max_recovery_pct = 0.0;
+    if(prop_max_dd_loss > 0) {
+        max_recovery_pct = (real_total_profit / prop_max_dd_loss) * 100.0;
+    }
+    ObjectSetString(chart_id, OBJ_COST_REC_MAX_REC_TEXT, OBJPROP_TEXT, DoubleToString(max_recovery_pct, 1) + " %");
+    
+    ChartRedraw(chart_id);
+}
