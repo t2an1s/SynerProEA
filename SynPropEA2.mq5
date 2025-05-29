@@ -1,12 +1,12 @@
     // SynPropEA2.mq5
-    #property copyright "Your Name/Alias"
-    #property link      "Your Link"
+    #property copyright "t2an1s"
+    #property link      "https://github.com/t2an1s/SynerProEA"
     #property version   "1.00"
     #property strict
     #property description "Slave EA for Synergy Strategy - Hedge Account"
 
     // --- Inputs ---
-    input string InpMasterCommandFile       = "SynerProEA_Commands.csv"; // File to read commands from Master EA
+    input string InpMasterCommandFile       = "SynerProEA_Commands.txt"; // File to read commands from Master EA
     input string InpSlaveStatusFile         = "EA2_Status.txt";        // File to write this EA's status
     input int    InpMagicNumber_Slave       = 67890;                   // Magic number for trades placed by this EA
     input int    InpSlippage_Slave          = 5;                       // Slippage in points for trade execution
@@ -24,6 +24,7 @@
     int    g_slave_status_file_handle   = INVALID_HANDLE;
     string g_csv_delimiter              = ","; // Must match SynPropEA1.mq5
     datetime g_last_processed_cmd_timestamp = 0;
+    ulong  g_ticket_of_last_processed_cmd = 0; // To differentiate commands with identical timestamps
     double g_slave_balance_at_day_start = 0.0;
     datetime g_last_day_for_daily_reset_slave = 0;
 
@@ -36,7 +37,13 @@
 
     // Trade object
     #include <Trade\Trade.mqh>
+    #include <Trade\SymbolInfo.mqh>
+    #include <Trade\PositionInfo.mqh>
+    #include <Trade\AccountInfo.mqh>
     CTrade trade;
+
+    // Account linking
+    #include "../SynPropEA_AccountLink.mqh"
 
     //+------------------------------------------------------------------+
     //| Expert initialization function                                   |
@@ -56,6 +63,17 @@
     temp_dt.sec = 0;
     g_last_day_for_daily_reset_slave = StructToTime(temp_dt);
     g_slave_balance_at_day_start = AccountInfoDouble(ACCOUNT_BALANCE);
+
+    // Validate account linking
+    const long account_number = AccountInfoInteger(ACCOUNT_LOGIN);
+    const string server = AccountInfoString(ACCOUNT_SERVER);
+    
+    if(!IsAccountLinked(account_number, server, InpMagicNumber_Slave)) {
+        Print("WARNING: This account is not linked to any master account. Please set up account linking first.");
+        g_ea_status_string = "Not Linked";
+        UpdateAndWriteSlaveStatusFile(false, g_ea_status_string);
+        return INIT_PARAMETERS_INCORRECT;
+    }
 
     Dashboard_Mini_Init();
     UpdateAndWriteSlaveStatusFile(true, "Initialized"); // Initial status write
@@ -142,165 +160,167 @@
     //+------------------------------------------------------------------+
     void ProcessMasterCommandFile()
     {
-    if(InpMasterCommandFile == "")
+        if(InpMasterCommandFile == "")
         {
-        g_ea_status_string = "Cmd File N/A";
-        return;
+            g_ea_status_string = "Cmd File N/A";
+            return;
         }
 
-    g_master_command_file_handle = FileOpen(InpMasterCommandFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
-    if(g_master_command_file_handle == INVALID_HANDLE)
-        {
-        // Log error less frequently to avoid spamming
-        static datetime last_error_log_time = 0;
-        if(TimeCurrent() - last_error_log_time > 60)
-        {
-            PrintFormat("ProcessMasterCommandFile: Error opening command file '%s' (in shared folder). Error: %d", InpMasterCommandFile, GetLastError());
-            last_error_log_time = TimeCurrent();
-        }
-        g_ea_status_string = "Cmd File Read Err";
-        return;
-        }
-
-    string cmd_type, symbol_str, master_ticket_str, lots_str, entry_str, sl_str, tp_str, cmd_timestamp_str;
-    datetime cmd_timestamp_dt;
-    ulong master_ticket;
-    double lots, sl, tp;
-
-    // Read all lines and process new ones
-    // File an array with all commands and then iterate to find unprocessed ones might be safer for complex scenarios
-    // For now, simple sequential read and check timestamp
-    
-    // To avoid reprocessing, we must ensure we read from the beginning and find all *new* commands
-    // A more robust approach might be for the master to write a unique command ID
-    // For this version, we rely on the timestamp and process all commands since the last processed one.
-    
-    FileSeek(g_master_command_file_handle, 0, SEEK_SET); // Start from beginning
-
-    while(!FileIsEnding(g_master_command_file_handle))
-        {
-        cmd_type = FileReadString(g_master_command_file_handle);
-        master_ticket_str = FileReadString(g_master_command_file_handle); // Read master_ticket second
+        // Check account linking before processing commands
+        const long account_number = AccountInfoInteger(ACCOUNT_LOGIN);
+        const string server = AccountInfoString(ACCOUNT_SERVER);
         
-        // Read remaining fields, some might be placeholders depending on cmd_type
-        symbol_str = FileReadString(g_master_command_file_handle);
-        lots_str = FileReadString(g_master_command_file_handle);
-        entry_str = FileReadString(g_master_command_file_handle); 
-        sl_str = FileReadString(g_master_command_file_handle);
-        tp_str = FileReadString(g_master_command_file_handle);
-        cmd_timestamp_str = FileReadString(g_master_command_file_handle);
-        PrintFormat("DEBUG EA2: Raw cmd_timestamp_str read: '%s'", cmd_timestamp_str); 
+        if(!IsAccountLinked(account_number, server, InpMagicNumber_Slave)) {
+            g_ea_status_string = "Not Linked";
+            return;
+        }
 
-        if(!FileIsLineEnding(g_master_command_file_handle) && !FileIsEnding(g_master_command_file_handle))
+        g_master_command_file_handle = FileOpen(InpMasterCommandFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
+        if(g_master_command_file_handle == INVALID_HANDLE)
+        {
+            // Log error less frequently to avoid spamming
+            static datetime last_error_log_time = 0;
+            if(TimeCurrent() - last_error_log_time > 60)
             {
-            Print("ProcessMasterCommandFile: Incomplete line read from command file. Skipping rest of file.");
-            break; 
+                PrintFormat("ProcessMasterCommandFile: Error opening command file '%s' (in shared folder). Error: %d", InpMasterCommandFile, GetLastError());
+                last_error_log_time = TimeCurrent();
+            }
+            g_ea_status_string = "Cmd File Read Err";
+            return;
+        }
+
+        string cmd_type, symbol_str, master_ticket_str, lots_str, entry_str, sl_str, tp_str, cmd_timestamp_str;
+        datetime cmd_timestamp_dt = 0;
+        ulong master_ticket;
+        double lots;
+
+        // Read all lines and process new ones
+        FileSeek(g_master_command_file_handle, 0, SEEK_SET); // Start from beginning
+
+        while(!FileIsEnding(g_master_command_file_handle))
+        {
+            cmd_type = FileReadString(g_master_command_file_handle);
+            master_ticket_str = FileReadString(g_master_command_file_handle);
+            
+            symbol_str = FileReadString(g_master_command_file_handle);
+            lots_str = FileReadString(g_master_command_file_handle);
+            entry_str = FileReadString(g_master_command_file_handle); 
+            sl_str = FileReadString(g_master_command_file_handle);
+            tp_str = FileReadString(g_master_command_file_handle);
+            cmd_timestamp_str = FileReadString(g_master_command_file_handle);
+            PrintFormat("DEBUG EA2: Raw cmd_timestamp_str read: '%s'", cmd_timestamp_str); 
+
+            if(!FileIsLineEnding(g_master_command_file_handle) && !FileIsEnding(g_master_command_file_handle))
+            {
+                Print("ProcessMasterCommandFile: Incomplete line read from command file. Skipping rest of file.");
+                break; 
             }
 
-        cmd_timestamp_dt = (long)StringToDouble(cmd_timestamp_str);
-        PrintFormat("DEBUG EA2: Converted cmd_timestamp_dt: %s (long value: %d)", TimeToString(cmd_timestamp_dt), cmd_timestamp_dt); 
+            datetime temp_timestamp = (datetime)StringToInteger(cmd_timestamp_str);
+            if(temp_timestamp > 0) {
+                cmd_timestamp_dt = temp_timestamp;
+            }
+            PrintFormat("DEBUG EA2: Converted cmd_timestamp_dt: %s (long value: %d)", TimeToString(cmd_timestamp_dt), cmd_timestamp_dt); 
 
-        if(cmd_timestamp_dt > g_last_processed_cmd_timestamp)
+            master_ticket = StringToInteger(master_ticket_str);
+
+            if(cmd_timestamp_dt > g_last_processed_cmd_timestamp || 
+               (cmd_timestamp_dt == g_last_processed_cmd_timestamp && master_ticket != 0 && master_ticket != g_ticket_of_last_processed_cmd))
             {
-            master_ticket = StringToInteger(master_ticket_str); // Assuming master_ticket fits in int, ulong is safer from file though.
-                                                                // For consistency with ulong master_ticket var type, should be StringToULong if available or parse carefully.
-                                                                // Let's stick to StringToInteger for now as it was used before, but flag for review.
+                PrintFormat("ProcessMasterCommandFile: New Command Received - Type: %s, MasterTicket: %s (%d), Symbol: %s, CmdTime: %s",
+                            cmd_type, master_ticket_str, master_ticket, symbol_str, TimeToString(cmd_timestamp_dt));
+                g_last_cmd_processed_str = cmd_type + " @ " + TimeToString(cmd_timestamp_dt, TIME_SECONDS);
 
-            PrintFormat("ProcessMasterCommandFile: New Command Received - Type: %s, MasterTicket: %s (%d), Symbol: %s, CmdTime: %s",
-                        cmd_type, master_ticket_str, master_ticket, symbol_str, TimeToString(cmd_timestamp_dt));
-            g_last_cmd_processed_str = cmd_type + " @ " + TimeToString(cmd_timestamp_dt, TIME_SECONDS);
-
-            if(InpEnableTrading)
-            {
-                if(cmd_type == "OPEN_LONG" || cmd_type == "OPEN_SHORT")
+                if(InpEnableTrading)
                 {
-                  // CRITICAL BUG FIX: Check if a slave trade for this master_ticket already exists
-                  ulong existing_slave_ticket = FindSlavePositionByMasterTicket(master_ticket);
-                  if(existing_slave_ticket > 0)
+                    if(cmd_type == "OPEN_LONG" || cmd_type == "OPEN_SHORT")
                     {
-                      PrintFormat("ProcessMasterCommandFile: Slave trade for master ticket %d (slave ticket %d) already exists. Skipping duplicate OPEN command.", 
-                                  master_ticket, existing_slave_ticket);
-                      g_ea_status_string = "Dup OPEN Skip";
-                    }
-                  else
-                    {
-                      lots = StringToDouble(lots_str);
-                      // sl and tp are master's SL/TP, used to derive slave's SL/TP
-                      double master_sl_from_file = StringToDouble(sl_str);
-                      double master_tp_from_file = StringToDouble(tp_str);
-                      ExecuteHedgeTrade(cmd_type, symbol_str, lots, master_tp_from_file, master_sl_from_file, master_ticket);
-                    }
-                }
-                else if(cmd_type == "CLOSE_HEDGE")
-                {
-                ulong slave_ticket_to_close = FindSlavePositionByMasterTicket(master_ticket);
-                if(slave_ticket_to_close > 0)
-                    {
-                    bool close_res = trade.PositionClose(slave_ticket_to_close);
-                    if(close_res) 
+                        ulong existing_slave_ticket = FindSlavePositionByMasterTicket(master_ticket);
+                        if(existing_slave_ticket > 0)
                         {
-                        PrintFormat("ProcessMasterCommandFile: CLOSE_HEDGE command successful for master ticket %d (slave ticket %d).", master_ticket, slave_ticket_to_close);
-                        g_ea_status_string = "Hedge Closed";
+                            PrintFormat("ProcessMasterCommandFile: Slave trade for master ticket %d (slave ticket %d) already exists. Skipping duplicate OPEN command.", 
+                                    master_ticket, existing_slave_ticket);
+                            g_ea_status_string = "Dup OPEN Skip";
                         }
-                    else 
+                        else
                         {
-                        PrintFormat("ProcessMasterCommandFile: Failed to close slave ticket %d (master %d). Error: %d, Retcode: %d", 
-                                    slave_ticket_to_close, master_ticket, GetLastError(), trade.ResultRetcode());
-                        g_ea_status_string = "Hedge Close Fail";
+                            lots = StringToDouble(lots_str);
+                            double master_sl = StringToDouble(sl_str);
+                            double master_tp = StringToDouble(tp_str);
+                            ExecuteHedgeTrade(cmd_type, symbol_str, lots, master_tp, master_sl, master_ticket);
                         }
                     }
-                else
+                    else if(cmd_type == "CLOSE_HEDGE")
                     {
-                    PrintFormat("ProcessMasterCommandFile: CLOSE_HEDGE command for master ticket %d - no corresponding slave position found.", master_ticket);
-                    g_ea_status_string = "Close: Slave N/F";
-                    }
-                }
-                else if(cmd_type == "MODIFY_HEDGE")
-                {
-                double new_slave_sl = StringToDouble(sl_str); // This sl_str from file is Master EA's new TP
-                double new_slave_tp = StringToDouble(tp_str); // This tp_str from file is Master EA's new SL
-                
-                ulong slave_ticket_to_modify = FindSlavePositionByMasterTicket(master_ticket);
-                if(slave_ticket_to_modify > 0)
-                    {
-                    PrintFormat("ProcessMasterCommandFile: Attempting MODIFY_HEDGE for master ticket %d (slave ticket %d). New Slave SL: %.5f, New Slave TP: %.5f", 
-                                master_ticket, slave_ticket_to_modify, new_slave_sl, new_slave_tp);
-                    bool modify_res = trade.PositionModify(slave_ticket_to_modify, new_slave_sl, new_slave_tp);
-                    if(modify_res)
+                    ulong slave_ticket_to_close = FindSlavePositionByMasterTicket(master_ticket);
+                    if(slave_ticket_to_close > 0)
                         {
-                        PrintFormat("ProcessMasterCommandFile: MODIFY_HEDGE successful for slave ticket %d.", slave_ticket_to_modify);
-                        g_ea_status_string = "Hedge SL/TP ModOK";
+                        bool close_res = trade.PositionClose(slave_ticket_to_close);
+                        if(close_res) 
+                            {
+                            PrintFormat("ProcessMasterCommandFile: CLOSE_HEDGE command successful for master ticket %d (slave ticket %d).", master_ticket, slave_ticket_to_close);
+                            g_ea_status_string = "Hedge Closed";
+                            }
+                        else 
+                            {
+                            PrintFormat("ProcessMasterCommandFile: Failed to close slave ticket %d (master %d). Error: %d, Retcode: %d", 
+                                        slave_ticket_to_close, master_ticket, GetLastError(), trade.ResultRetcode());
+                            g_ea_status_string = "Hedge Close Fail";
+                            }
                         }
                     else
                         {
-                        PrintFormat("ProcessMasterCommandFile: Failed to MODIFY_HEDGE for slave ticket %d. Error: %d, Retcode: %d", 
-                                    slave_ticket_to_modify, GetLastError(), trade.ResultRetcode());
-                        g_ea_status_string = "Hedge SL/TP ModFail";
+                        PrintFormat("ProcessMasterCommandFile: CLOSE_HEDGE command for master ticket %d - no corresponding slave position found.", master_ticket);
+                        g_ea_status_string = "Close: Slave N/F";
                         }
                     }
-                else
+                    else if(cmd_type == "MODIFY_HEDGE")
                     {
-                    PrintFormat("ProcessMasterCommandFile: MODIFY_HEDGE command for master ticket %d - no corresponding slave position found.", master_ticket);
-                    g_ea_status_string = "Modify: Slave N/F";
+                    double new_slave_sl = StringToDouble(sl_str); // This sl_str from file is Master EA's new TP
+                    double new_slave_tp = StringToDouble(tp_str); // This tp_str from file is Master EA's new SL
+                    
+                    ulong slave_ticket_to_modify = FindSlavePositionByMasterTicket(master_ticket);
+                    if(slave_ticket_to_modify > 0)
+                        {
+                        PrintFormat("ProcessMasterCommandFile: Attempting MODIFY_HEDGE for master ticket %d (slave ticket %d). New Slave SL: %.5f, New Slave TP: %.5f", 
+                                    master_ticket, slave_ticket_to_modify, new_slave_sl, new_slave_tp);
+                        bool modify_res = trade.PositionModify(slave_ticket_to_modify, new_slave_sl, new_slave_tp);
+                        if(modify_res)
+                            {
+                            PrintFormat("ProcessMasterCommandFile: MODIFY_HEDGE successful for slave ticket %d.", slave_ticket_to_modify);
+                            g_ea_status_string = "Hedge SL/TP ModOK";
+                            }
+                        else
+                            {
+                            PrintFormat("ProcessMasterCommandFile: Failed to MODIFY_HEDGE for slave ticket %d. Error: %d, Retcode: %d", 
+                                        slave_ticket_to_modify, GetLastError(), trade.ResultRetcode());
+                            g_ea_status_string = "Hedge SL/TP ModFail";
+                            }
+                        }
+                    else
+                        {
+                        PrintFormat("ProcessMasterCommandFile: MODIFY_HEDGE command for master ticket %d - no corresponding slave position found.", master_ticket);
+                        g_ea_status_string = "Modify: Slave N/F";
+                        }
                     }
                 }
+                else {
+                    Print("ProcessMasterCommandFile: Trading disabled. Command not executed.");
+                    g_ea_status_string = "Trading Disabled";
+                }
+                g_last_processed_cmd_timestamp = cmd_timestamp_dt; 
+                g_ticket_of_last_processed_cmd = master_ticket; // Store the master ticket of the processed command
             }
-            else {
-                Print("ProcessMasterCommandFile: Trading disabled. Command not executed.");
-                g_ea_status_string = "Trading Disabled";
-            }
-            g_last_processed_cmd_timestamp = cmd_timestamp_dt; 
-            }
-        else
+            else
             {
-            PrintFormat("DEBUG EA2: Command skipped. cmd_timestamp_dt (%d / %s) not > g_last_processed_cmd_timestamp (%d / %s). For MasterTicketStr: %s",
-                        cmd_timestamp_dt, TimeToString(cmd_timestamp_dt),
-                        g_last_processed_cmd_timestamp, TimeToString(g_last_processed_cmd_timestamp),
-                        master_ticket_str); // DEBUG
+                PrintFormat("DEBUG EA2: Command skipped. cmd_timestamp_dt (%d / %s), master_ticket (%d) vs g_last_processed_cmd_timestamp (%d / %s), g_ticket_of_last_processed_cmd (%d). For MasterTicketStr: %s",
+                            cmd_timestamp_dt, TimeToString(cmd_timestamp_dt), master_ticket,
+                            g_last_processed_cmd_timestamp, TimeToString(g_last_processed_cmd_timestamp), g_ticket_of_last_processed_cmd,
+                            master_ticket_str); // DEBUG
             }
         }
-    FileClose(g_master_command_file_handle);
-    g_master_command_file_handle = INVALID_HANDLE; // Reset handle
+        FileClose(g_master_command_file_handle);
+        g_master_command_file_handle = INVALID_HANDLE;
     }
 
     //+------------------------------------------------------------------+
