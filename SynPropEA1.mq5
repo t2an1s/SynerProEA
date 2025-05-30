@@ -10,84 +10,88 @@
 
 // --- Global Variables & Inputs ---
 // File Names
-input string InpCommonFileName    = "SynerProEA_Commands.csv";
-input string InpSlaveStatusFile   = "EA2_Status.txt";
-input string InpPositionMappingFile = "SynerProEA_PositionMapping.csv";
+input string CommonFileName    = "SynerProEA_Commands.csv";
+input string SlaveStatusFile   = "EA2_Status.txt";
+input string PositionMappingFile = "SynerProEA_PositionMapping.csv";
 
 // Trading Parameters
-input double InpLotSize           = 0.01;
-input bool   InpUseRiskPercent    = true;
-input double InpRiskPercent       = 0.3;
-input int    InpSlippage          = 3; 
-input int    InpMagicNumber       = 12345;
-input double InpRiskRewardRatio   = 2.0; 
-input double InpStopLossBufferPips  = 2.0; 
-input bool   InpAllowTrades       = true; 
-input int    InpPyramidingMaxOrders = 1; // Max orders for pyramiding (1 = no pyramiding)
+input double LotSize           = 0.01;
+input bool   UseRiskPercent    = true;
+input double RiskPercent       = 0.3;
+input int    Slippage          = 3; 
+input int    MagicNumber       = 12345;
+input double StopLossBufferPips  = 2.0; 
+input double TakeProfitBufferPips= 2.0; 
+input bool   AllowTrades       = true; 
+input int    PyramidingMaxOrders = 1; // Max orders for pyramiding (1 = no pyramiding)
+input bool   EnableStandaloneTestMode = false; 
+input int    ThrottledPrintIntervalSeconds = 60;   // Interval for throttled prints
+input bool   ShowDetailedPnLDebug = false; // Show detailed PnL calculation debug info
 
 
 // Challenge Parameters (Static Limits for Prop Account)
-input double InpChallengeCost     = 700.0; 
-input int    InpChallengeStages   = 1;     
-input double InpStageTargetProfitDollars = 1000.0; 
-input double InpMaxAccountDDLimitDollars = 4000.0; 
-input double InpDailyDDLimitDollars    = 2000.0; 
-input double InpPropStartBalanceOverride = 0.0;  
-input int    InpMinTradingDaysTotal_Prop = 5;    
+input double ChallengeCost     = 700.0; 
+input int    ChallengeStages   = 1;     
+input double StageTargetProfitDollars = 1000.0; 
+input double MaxAccountDDLimitDollars = 4000.0; 
+input double DailyDDLimitDollars    = 2000.0; 
+input double PropStartBalanceOverride = 0.0;  
+input int    MinTradingDaysTotal_Prop = 5;    
 
 // Session Filter Inputs
-input string InpMondaySession1    = "08:00-16:00"; input string InpMondaySession2    = "";
-input string InpTuesdaySession1   = "08:00-16:00"; input string InpTuesdaySession2   = "";
-input string InpWednesdaySession1 = "08:00-16:00"; input string InpWednesdaySession2 = "";
-input string InpThursdaySession1  = "08:00-16:00"; input string InpThursdaySession2  = "";
-input string InpFridaySession1    = "08:00-15:00"; input string InpFridaySession2    = "";
-input string InpSaturdaySession1  = "";            input string InpSaturdaySession2  = "";
-input string InpSundaySession1    = "";            input string InpSundaySession2    = "";
-input string InpBrokerTimeZoneOffset = "+2";
+input string MondaySession1    = "08:00-16:00"; input string MondaySession2    = "";
+input string TuesdaySession1   = "08:00-16:00"; input string TuesdaySession2   = "";
+input string WednesdaySession1 = "08:00-16:00"; input string WednesdaySession2 = "";
+input string ThursdaySession1  = "08:00-16:00"; input string ThursdaySession2  = "";
+input string FridaySession1    = "08:00-15:00"; input string FridaySession2    = "";
+input string SaturdaySession1  = "";            input string SaturdaySession2  = "";
+input string SundaySession1    = "";            input string SundaySession2    = "";
+input string BrokerTimeZoneOffset = "+2";
 
 // Heikin-Ashi Bias
-input ENUM_TIMEFRAMES InpHA_Timeframe    = PERIOD_H1;
-input int             InpHA_MAPeriod     = 10; 
-input int             InpHA_SignalMAPeriod = 5; 
-input bool            InpDisableHABias   = false;
-input double          InpHA_BiasThreshold = 0.0; 
+input ENUM_TIMEFRAMES HA_Timeframe    = PERIOD_H1;
+input int             HA_MAPeriod     = 10; 
+input int             HA_SignalMAPeriod = 5; 
+input bool            DisableHABias   = false;
+input double          HA_BiasThreshold = 0.0; 
 
 // ADX Gate
-input int    InpADX_Period        = 14;
-input bool   InpUseDynamicADX     = true;
-input double InpStaticADXThreshold= 20.0; 
-input int    InpDynamicADXMAPeriod= 20;
-input double InpDynamicADXMultiplier = 1.0; 
-input double InpADXMinThreshold   = 15.0;
+input bool   UseADXFilter       = true; // <-- Main toggle for ADX
+input int    ADX_Period        = 14;
+input bool   UseDynamicADX     = true;
+input double StaticADXThreshold= 20.0; 
+input int    DynamicADXMAPeriod= 20;
+input double DynamicADXMultiplier = 1.0; 
+input double ADXMinThreshold   = 15.0;
 
 // --- Synergy Score Inputs ---
 // M5
-input int    InpSyn_M5_RSI_Period    = 14;     input double InpSyn_M5_RSI_Weight       = 1.0;
-input int    InpSyn_M5_EMA_Fast_Period = 10;     input int    InpSyn_M5_EMA_Slow_Period  = 100; input double InpSyn_M5_Trend_Weight   = 1.0;
-input int    InpSyn_M5_MACD_Fast     = 12;     input int    InpSyn_M5_MACD_Slow      = 26;  input double InpSyn_M5_MACDV_Weight   = 1.0;
+input int    Syn_M5_RSI_Period    = 14;     input double Syn_M5_RSI_Weight       = 1.0;
+input int    Syn_M5_EMA_Fast_Period = 10;     input int    Syn_M5_EMA_Slow_Period  = 100; input double Syn_M5_Trend_Weight   = 1.0;
+input int    Syn_M5_MACD_Fast     = 12;     input int    Syn_M5_MACD_Slow      = 26;  input double Syn_M5_MACDV_Weight   = 1.0;
 // M15
-input int    InpSyn_M15_RSI_Period   = 14;     input double InpSyn_M15_RSI_Weight      = 1.0;
-input int    InpSyn_M15_EMA_Fast_Period= 50;     input int    InpSyn_M15_EMA_Slow_Period = 200; input double InpSyn_M15_Trend_Weight  = 1.0;
-input int    InpSyn_M15_MACD_Fast    = 12;     input int    InpSyn_M15_MACD_Slow     = 26;  input double InpSyn_M15_MACDV_Weight  = 1.0;
+input int    Syn_M15_RSI_Period   = 14;     input double Syn_M15_RSI_Weight      = 1.0;
+input int    Syn_M15_EMA_Fast_Period= 50;     input int    Syn_M15_EMA_Slow_Period = 200; input double Syn_M15_Trend_Weight  = 1.0;
+input int    Syn_M15_MACD_Fast    = 12;     input int    Syn_M15_MACD_Slow     = 26;  input double Syn_M15_MACDV_Weight  = 1.0;
 // H1
-input int    InpSyn_H1_RSI_Period    = 14;     input double InpSyn_H1_RSI_Weight       = 1.0;
-input int    InpSyn_H1_EMA_Fast_Period = 50;     input int    InpSyn_H1_EMA_Slow_Period  = 200; input double InpSyn_H1_Trend_Weight   = 1.0;
-input int    InpSyn_H1_MACD_Fast     = 12;     input int    InpSyn_H1_MACD_Slow      = 26;  input double InpSyn_H1_MACDV_Weight   = 1.0;
+input int    Syn_H1_RSI_Period    = 14;     input double Syn_H1_RSI_Weight       = 1.0;
+input int    Syn_H1_EMA_Fast_Period = 50;     input int    Syn_H1_EMA_Slow_Period  = 200; input double Syn_H1_Trend_Weight   = 1.0;
+input int    Syn_H1_MACD_Fast     = 12;     input int    Syn_H1_MACD_Slow      = 26;  input double Syn_H1_MACDV_Weight   = 1.0;
 
-input bool   InpDisableSynergyScore = false;
+input bool   DisableSynergyScore = false;
 
 // Pivots
-input int    InpPivotLookbackBars = 50; 
-input int    InpPivotLeftBars     = 6;  
-input int    InpPivotRightBars    = 6;  
+input int    PivotLookbackBars = 50; 
+input int    PivotLeftBars     = 6;  
+input int    PivotRightBars    = 6;  
 
 // Visual Toggles
-input bool   InpShowPivotVisuals    = true;
-input color  InpPivotUpColor        = clrGreen; 
-input color  InpPivotDownColor      = clrRed;   
-input bool   InpShowMarketBiasVisual= true;
-input color  InpMarketBiasUpColor   = C'173,216,230'; 
-input color  InpMarketBiasDownColor = C'255,192,203'; 
+input bool   ShowPivotVisuals    = true;
+input color  PivotUpColor        = clrGreen; 
+input color  PivotDownColor      = clrRed;   
+input bool   ShowMarketBiasVisual= true;
+input color  MarketBiasUpColor   = C'173,216,230'; 
+input color  MarketBiasDownColor = C'255,192,203'; 
 
 
 // --- Internal Global Variables ---
@@ -137,7 +141,7 @@ datetime g_slave_last_update_in_file = 0;       // Timestamp from within the sla
 datetime g_slave_last_update_processed_time = 0; // Last time EA1 successfully processed the slave file
 int      g_slave_status_file_handle = INVALID_HANDLE;
 int      g_common_command_file_handle = INVALID_HANDLE;
-string   g_csv_delimiter = ","; // Using comma as per initial plan, ensure consistency with slave
+string   g_csv_delimiter = ";"; // Changed to semicolon based on EA2_Status.txt example
 
 // New globals for additional slave data
 double   g_slave_open_volume = 0.0;
@@ -158,20 +162,22 @@ enum ENUM_TRADE_DIRECTION {
     TRADE_DIRECTION_SHORT
 };
 
+// --- Internal Global Variables ---
+static datetime g_last_throttled_print_time = 0; // For throttling debug prints
+
 //+------------------------------------------------------------------+
 void UpdateEAOpenPositionsState()
   {
    g_ea_open_positions_count = 0;
    g_ea_open_positions_type = WRONG_VALUE; // Reset
    int total_positions = PositionsTotal();
-   // PrintFormat("UpdateEAOpenPositionsState: Starting scan. PositionsTotal() = %d", total_positions); // Optional: very verbose
-
+  
    for(int i = total_positions - 1; i >= 0; i--)
      {
       ulong ticket = PositionGetTicket(i);
       if(PositionSelectByTicket(ticket))
         {
-         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber &&
+         if(PositionGetInteger(POSITION_MAGIC) == MagicNumber &&
             PositionGetString(POSITION_SYMBOL) == _Symbol)
            {
             g_ea_open_positions_count++;
@@ -179,11 +185,14 @@ void UpdateEAOpenPositionsState()
               {
                g_ea_open_positions_type = (ENUM_ORDER_TYPE)PositionGetInteger(POSITION_TYPE);
               }
-            // PrintFormat("UpdateEAOpenPositionsState: Found matching position #%d. Count is now %d.", ticket, g_ea_open_positions_count); // Optional: very verbose
            }
         }
      }
-   PrintFormat("UpdateEAOpenPositionsState: Scan complete. Final g_ea_open_positions_count = %d for symbol %s, magic %d.", g_ea_open_positions_count, _Symbol, InpMagicNumber);
+   if (TimeCurrent() - g_last_throttled_print_time >= ThrottledPrintIntervalSeconds)
+     {
+        PrintFormat("UpdateEAOpenPositionsState (Throttled): Scan complete. Final g_ea_open_positions_count = %d for symbol %s, magic %d.", g_ea_open_positions_count, _Symbol, MagicNumber);
+        // Note: g_last_throttled_print_time is updated in OnTick after all potential throttled prints for that tick cycle
+     }
   }
 
 
@@ -206,12 +215,18 @@ double GetPipToPointsMultiplier()
 //+------------------------------------------------------------------+
 void CalculateGMTOffset()
   {
-   string offset_str = InpBrokerTimeZoneOffset;
-   PrintFormat("CalculateGMTOffset: Raw InpBrokerTimeZoneOffset = '%s'", offset_str);
+   string offset_str = BrokerTimeZoneOffset;
+   if (TimeCurrent() - g_last_throttled_print_time >= ThrottledPrintIntervalSeconds)
+     {
+        PrintFormat("CalculateGMTOffset (Throttled): Raw BrokerTimeZoneOffset = '%s'", offset_str);
+     }
    StringReplace(offset_str, "GMT", "");
    StringReplace(offset_str, " ", ""); 
    broker_time_gmt_offset_seconds = (long)StringToInteger(offset_str) * 3600;
-   PrintFormat("CalculateGMTOffset: Parsed offset_str = '%s', broker_time_gmt_offset_seconds = %d", offset_str, broker_time_gmt_offset_seconds);
+   if (TimeCurrent() - g_last_throttled_print_time >= ThrottledPrintIntervalSeconds)
+     {
+       PrintFormat("CalculateGMTOffset (Throttled): Parsed offset_str = '%s', broker_time_gmt_offset_seconds = %d", offset_str, broker_time_gmt_offset_seconds);
+     }
   }
 
 //+------------------------------------------------------------------+
@@ -224,28 +239,32 @@ bool IsInTradingSession()
    datetime current_gmt_timestamp = (datetime)(current_broker_dt - broker_time_gmt_offset_seconds); 
    MqlDateTime gmt_time_struct;
    TimeToStruct(current_gmt_timestamp, gmt_time_struct);
+   bool do_print = (TimeCurrent() - g_last_throttled_print_time >= ThrottledPrintIntervalSeconds);
 
-   PrintFormat("IsInTradingSession: Broker Time: %s, Calculated GMT: %s (Offset applied: %d seconds)", 
-               TimeToString(current_broker_dt, TIME_DATE|TIME_SECONDS), 
-               TimeToString(current_gmt_timestamp, TIME_DATE|TIME_SECONDS),
-               broker_time_gmt_offset_seconds);
+   if(do_print)
+     {
+        PrintFormat("IsInTradingSession (Throttled): Broker Time: %s, Calculated GMT: %s (Offset applied: %d seconds)", 
+                    TimeToString(current_broker_dt, TIME_DATE|TIME_SECONDS), 
+                    TimeToString(current_gmt_timestamp, TIME_DATE|TIME_SECONDS),
+                    broker_time_gmt_offset_seconds);
+        PrintFormat("IsInTradingSession (Throttled): Current GMT DayOfWeek: %d, Hour: %d, Min: %d", gmt_time_struct.day_of_week, gmt_time_struct.hour, gmt_time_struct.min);
+     }
 
    int day_of_week = gmt_time_struct.day_of_week; // 0=Sun, 1=Mon, ..., 6=Sat
    int current_hour_gmt = gmt_time_struct.hour;
    int current_min_gmt = gmt_time_struct.min;
-   PrintFormat("IsInTradingSession: Current GMT DayOfWeek: %d, Hour: %d, Min: %d", day_of_week, current_hour_gmt, current_min_gmt);
 
    string session1_str = "", session2_str = "";
 
    switch(day_of_week)
      {
-      case 0: session1_str = InpSundaySession1;    session2_str = InpSundaySession2;    break;
-      case 1: session1_str = InpMondaySession1;    session2_str = InpMondaySession2;    break;
-      case 2: session1_str = InpTuesdaySession1;   session2_str = InpTuesdaySession2;   break;
-      case 3: session1_str = InpWednesdaySession1; session2_str = InpWednesdaySession2; break;
-      case 4: session1_str = InpThursdaySession1;  session2_str = InpThursdaySession2;  break;
-      case 5: session1_str = InpFridaySession1;    session2_str = InpFridaySession2;    break;
-      case 6: session1_str = InpSaturdaySession1;  session2_str = InpSaturdaySession2;  break;
+      case 0: session1_str = SundaySession1;    session2_str = SundaySession2;    break;
+      case 1: session1_str = MondaySession1;    session2_str = MondaySession2;    break;
+      case 2: session1_str = TuesdaySession1;   session2_str = TuesdaySession2;   break;
+      case 3: session1_str = WednesdaySession1; session2_str = WednesdaySession2; break;
+      case 4: session1_str = ThursdaySession1;  session2_str = ThursdaySession2;  break;
+      case 5: session1_str = FridaySession1;    session2_str = FridaySession2;    break;
+      case 6: session1_str = SaturdaySession1;  session2_str = SaturdaySession2;  break;
      }
 
    bool in_session1 = false;
@@ -266,8 +285,11 @@ bool IsInTradingSession()
             int start_time_in_mins   = start_h * 60 + start_m;
             int end_time_in_mins     = end_h * 60 + end_m;
 
-            PrintFormat("IsInTradingSession: Checking Session1 '%s' (Start %02d:%02d, End %02d:%02d GMT) against Current GMT %02d:%02d", 
-                        session1_str, start_h, start_m, end_h, end_m, current_hour_gmt, current_min_gmt);
+            if(do_print)
+              {
+                 PrintFormat("IsInTradingSession (Throttled): Checking Session1 '%s' (Start %02d:%02d, End %02d:%02d GMT) against Current GMT %02d:%02d", 
+                             session1_str, start_h, start_m, end_h, end_m, current_hour_gmt, current_min_gmt);
+              }
 
             if(end_time_in_mins < start_time_in_mins) 
               {
@@ -298,8 +320,11 @@ bool IsInTradingSession()
             int start_time_in_mins   = start_h * 60 + start_m;
             int end_time_in_mins     = end_h * 60 + end_m;
 
-            PrintFormat("IsInTradingSession: Checking Session2 '%s' (Start %02d:%02d, End %02d:%02d GMT) against Current GMT %02d:%02d", 
-                        session2_str, start_h, start_m, end_h, end_m, current_hour_gmt, current_min_gmt);
+            if(do_print)
+              {
+                PrintFormat("IsInTradingSession (Throttled): Checking Session2 '%s' (Start %02d:%02d, End %02d:%02d GMT) against Current GMT %02d:%02d", 
+                            session2_str, start_h, start_m, end_h, end_m, current_hour_gmt, current_min_gmt);
+              }
 
             if(end_time_in_mins < start_time_in_mins) 
               {
@@ -316,12 +341,18 @@ bool IsInTradingSession()
      }
    if((session1_str == "" && session2_str == "") || in_session1 || in_session2)
      {
-      PrintFormat("IsInTradingSession: RESULT = true (Session1 Active: %s, Session2 Active: %s, Or No Sessions Defined For Day)", 
-                  in_session1 ? "Yes":"No", in_session2 ? "Yes":"No");
+      if(do_print)
+        {
+            PrintFormat("IsInTradingSession (Throttled): RESULT = true (Session1 Active: %s, Session2 Active: %s, Or No Sessions Defined For Day)", 
+                        in_session1 ? "Yes":"No", in_session2 ? "Yes":"No");
+        }
       return true;
      }
-   PrintFormat("IsInTradingSession: RESULT = false (Session1 Active: %s, Session2 Active: %s)", 
-               in_session1 ? "Yes":"No", in_session2 ? "Yes":"No");
+   if(do_print)
+     {
+        PrintFormat("IsInTradingSession (Throttled): RESULT = false (Session1 Active: %s, Session2 Active: %s)", 
+                    in_session1 ? "Yes":"No", in_session2 ? "Yes":"No");
+     }
    return false;
   }
 
@@ -359,16 +390,25 @@ void IdentifyPivotsForVisuals()
    ArrayFree(g_identified_pivots_low);
 
    int rates_total = (int)Bars(_Symbol, _Period);
-   int lookback_visual = InpPivotLookbackBars; 
-   int left_bars_visual = InpPivotLeftBars;
-   int right_bars_visual = InpPivotRightBars;
+   int lookback_visual = PivotLookbackBars; 
+   int left_bars_visual = PivotLeftBars;
+   int right_bars_visual = PivotRightBars;
 
-   if(rates_total < lookback_visual + right_bars_visual + 1 || rates_total < left_bars_visual + right_bars_visual + 1) return;
+   // Ensure enough bars for the widest part of the check (pivot candidate + left + right)
+   if(rates_total < left_bars_visual + right_bars_visual + 1) return;
+   // Ensure lookback_visual is also reasonable for the loop
+   if(rates_total < lookback_visual + right_bars_visual + 1) return; // Adjusted this check slightly for clarity
 
    double high[], low[];
    datetime times[];
    
-   int bars_to_copy = lookback_visual + left_bars_visual + right_bars_visual + 5; 
+   // Determine the number of bars to copy. We need to cover the lookback period for pivot candidates,
+   // and have enough data for their left/right checks.
+   // The candidate bar 'i' goes from right_bars_visual up to 'lookback_visual + right_bars_visual -1'.
+   // The leftmost bar accessed will be (lookback_visual + right_bars_visual -1) + left_bars_visual.
+   int bars_to_copy = lookback_visual + right_bars_visual + left_bars_visual + 5; // Added buffer
+   bars_to_copy = MathMin(bars_to_copy, rates_total); // Cannot copy more than available
+
    if(CopyHigh(_Symbol, _Period, 0, bars_to_copy, high) < bars_to_copy ||
       CopyLow(_Symbol, _Period, 0, bars_to_copy, low) < bars_to_copy ||
       CopyTime(_Symbol, _Period, 0, bars_to_copy, times) < bars_to_copy)
@@ -380,40 +420,72 @@ void IdentifyPivotsForVisuals()
    ArraySetAsSeries(low, true);
    ArraySetAsSeries(times, true);
 
-   for(int i = right_bars_visual; i < lookback_visual + right_bars_visual ; i++) 
-     {
-      if (i + left_bars_visual >= ArraySize(high) || i - right_bars_visual < 0) continue; 
+   // The loop for 'i' defines the *candidate* pivot bar's shift.
+   // It iterates from (right_bars_visual) up to (lookback_visual + right_bars_visual - 1).
+   // This ensures the pivot candidate itself is within the 'lookback_visual' range from the most recent bar.
+   int loop_end = MathMin(lookback_visual + right_bars_visual -1, ArraySize(times) - 1 - left_bars_visual);
+   loop_end = MathMin(loop_end, ArraySize(times) -1 ); // Ensure i is a valid index
+   int loop_start = right_bars_visual;
 
+   for(int i = loop_start; i <= loop_end ; i++) 
+     {
+      // Standard Fractal High Pivot Identification
       bool is_pivot_high = true;
       double current_high_val = high[i];
-      for(int j = i - left_bars_visual; j <= i + right_bars_visual; j++)
-        {
-         if(j == i) continue;
-         if(j < 0 || j >= ArraySize(high)) {is_pivot_high = false; break;} 
-         if(high[j] > current_high_val) { is_pivot_high = false; break; }
-        }
+
+      // Check Left Bars (older bars, indices i+k)
+      for(int k = 1; k <= left_bars_visual; k++)
+      {
+        if(i + k >= ArraySize(high)) { is_pivot_high = false; break; } // Out of bounds
+        if(high[i+k] >= current_high_val) { is_pivot_high = false; break; }
+      }
+      if(!is_pivot_high) continue; // Move to next candidate if left check fails
+
+      // Check Right Bars (newer bars, indices i-k)
+      for(int k = 1; k <= right_bars_visual; k++)
+      {
+        if(i - k < 0) { is_pivot_high = false; break; } // Out of bounds
+        if(high[i-k] > current_high_val) { is_pivot_high = false; break; } // Consistent with CalculatePivots
+      }
+
       if(is_pivot_high)
         {
          int current_size = ArraySize(g_identified_pivots_high);
          ArrayResize(g_identified_pivots_high, current_size + 1);
          g_identified_pivots_high[current_size].time = times[i];
-         g_identified_pivots_high[current_size].price = high[i];
+         g_identified_pivots_high[current_size].price = current_high_val; // Use current_high_val
         }
-
+     }
+     
+   // Reset for low pivots and redo loop (or combine if careful with conditions)
+   // For simplicity, separate loop for low pivots
+   for(int i = loop_start; i <= loop_end ; i++) 
+     {
+      // Standard Fractal Low Pivot Identification
       bool is_pivot_low = true;
       double current_low_val = low[i];
-      for(int j = i - left_bars_visual; j <= i + right_bars_visual; j++)
-        {
-         if(j == i) continue;
-         if(j < 0 || j >= ArraySize(low)) {is_pivot_low = false; break;} 
-         if(low[j] < current_low_val) { is_pivot_low = false; break; }
-        }
+
+      // Check Left Bars (older bars, indices i+k)
+      for(int k = 1; k <= left_bars_visual; k++)
+      {
+        if(i + k >= ArraySize(low)) { is_pivot_low = false; break; } // Out of bounds
+        if(low[i+k] <= current_low_val) { is_pivot_low = false; break; }
+      }
+      if(!is_pivot_low) continue; // Move to next candidate if left check fails
+
+      // Check Right Bars (newer bars, indices i-k)
+      for(int k = 1; k <= right_bars_visual; k++)
+      {
+        if(i - k < 0) { is_pivot_low = false; break; } // Out of bounds
+        if(low[i-k] < current_low_val) { is_pivot_low = false; break; } // Consistent with CalculatePivots
+      }
+
       if(is_pivot_low)
         {
          int current_size = ArraySize(g_identified_pivots_low);
          ArrayResize(g_identified_pivots_low, current_size + 1);
          g_identified_pivots_low[current_size].time = times[i];
-         g_identified_pivots_low[current_size].price = low[i];
+         g_identified_pivots_low[current_size].price = current_low_val; // Use current_low_val
         }
      }
   }
@@ -421,9 +493,9 @@ void IdentifyPivotsForVisuals()
 //+------------------------------------------------------------------+
 double CalculateLotSize(double stop_loss_distance_points) 
   {
-   double lot_size = InpLotSize; 
+   double lot_size = LotSize; 
 
-   if(InpUseRiskPercent)
+   if(UseRiskPercent)
      {
       if(stop_loss_distance_points <= 0)
         {
@@ -432,7 +504,7 @@ double CalculateLotSize(double stop_loss_distance_points)
         }
 
       double account_balance = AccountInfoDouble(ACCOUNT_BALANCE);
-      double risk_amount = account_balance * (InpRiskPercent / 100.0);
+      double risk_amount = account_balance * (RiskPercent / 100.0);
       
       double tick_value = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE); 
       double tick_size = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);   
@@ -461,7 +533,7 @@ double CalculateLotSize(double stop_loss_distance_points)
         
       lot_size = risk_amount / loss_per_lot_at_sl;
       PrintFormat("CalculateLotSize (Risk Based): Balance=%.2f, RiskPct=%.2f%%, RiskAmt=%.2f, SLDistPoints=%.1f, ValPerPoint1Lot=%.5f, LossPerLotAtSL=%.2f, RawLot=%.5f",
-                  account_balance, InpRiskPercent, risk_amount, stop_loss_distance_points, value_per_point_one_lot, loss_per_lot_at_sl, lot_size);
+                  account_balance, RiskPercent, risk_amount, stop_loss_distance_points, value_per_point_one_lot, loss_per_lot_at_sl, lot_size);
      }
    else 
      {
@@ -496,15 +568,15 @@ double CalculateStopLoss(int signal_type, double entry_price)
   {
    double sl_price = 0.0;
    double pip_to_points_multiplier = GetPipToPointsMultiplier();
-   double buffer_points_price_units = InpStopLossBufferPips * pip_to_points_multiplier * g_point_value; 
+   double buffer_points_price_units = StopLossBufferPips * pip_to_points_multiplier * g_point_value; 
 
    if(signal_type == 1) // BUY
      {
       if(recent_pivot_low.price > 0 && recent_pivot_low.price < entry_price)
         {
          sl_price = recent_pivot_low.price - buffer_points_price_units;
-         PrintFormat("SL Calc (BUY): Using Pivot Low %.5f (Time: %s), Buffer %.5f. SL: %.5f", 
-                     recent_pivot_low.price, TimeToString(recent_pivot_low.time), buffer_points_price_units, sl_price);
+         PrintFormat("SL Calc (BUY): Using Pivot Low %.5f (Time: %s, Bar Index: %d), Buffer %.5f. SL: %.5f", 
+                     recent_pivot_low.price, TimeToString(recent_pivot_low.time), iBarShift(_Symbol, _Period, recent_pivot_low.time, false), buffer_points_price_units, sl_price);
         }
       else
         {
@@ -518,8 +590,8 @@ double CalculateStopLoss(int signal_type, double entry_price)
       if(recent_pivot_high.price > 0 && recent_pivot_high.price > entry_price)
         {
          sl_price = recent_pivot_high.price + buffer_points_price_units;
-         PrintFormat("SL Calc (SELL): Using Pivot High %.5f (Time: %s), Buffer %.5f. SL: %.5f", 
-                     recent_pivot_high.price, TimeToString(recent_pivot_high.time), buffer_points_price_units, sl_price);
+         PrintFormat("SL Calc (SELL): Using Pivot High %.5f (Time: %s, Bar Index: %d), Buffer %.5f. SL: %.5f", 
+                     recent_pivot_high.price, TimeToString(recent_pivot_high.time), iBarShift(_Symbol, _Period, recent_pivot_high.time, false), buffer_points_price_units, sl_price);
         }
       else
         {
@@ -550,33 +622,49 @@ double CalculateStopLoss(int signal_type, double entry_price)
   }
 
 //+------------------------------------------------------------------+
-double CalculateTakeProfit(int signal_type, double entry_price, double stop_loss_price)
+double CalculateTakeProfit(int signal_type, double entry_price, double stop_loss_price) // stop_loss_price is no longer directly used for R:R
   {
-   if(stop_loss_price == 0.0 || entry_price == 0.0 || InpRiskRewardRatio <= 0)
+   if(entry_price == 0.0)
      {
-      Print("TP Calc: SL (%.5f) or Entry (%.5f) is 0.0 or R:R ratio (%.2f) is invalid. Cannot calculate TP.", stop_loss_price, entry_price, InpRiskRewardRatio);
+      Print("TP Calc: Entry price is 0.0. Cannot calculate TP.");
       return 0.0;
      }
 
-   double sl_distance_price = MathAbs(entry_price - stop_loss_price);
-   if(g_point_value > 0 && sl_distance_price <= g_point_value) 
-     {
-       PrintFormat("TP Calc: SL distance (%.*f) is too small (<= 1 point). Cannot calculate TP.", g_digits_value, sl_distance_price);
-       return 0.0;
-     }
-     
-   double tp_distance_price = sl_distance_price * InpRiskRewardRatio;
    double tp_price = 0.0;
+   double pip_to_points_multiplier = GetPipToPointsMultiplier();
+   double buffer_points_price_units = TakeProfitBufferPips * pip_to_points_multiplier * g_point_value;
 
-   if(signal_type == 1) // BUY
+   if(signal_type == 1) // BUY - Target a recent high pivot
      {
-      tp_price = entry_price + tp_distance_price;
+      if(recent_pivot_high.price > 0 && recent_pivot_high.price > entry_price)
+        {
+         tp_price = recent_pivot_high.price + buffer_points_price_units;
+         PrintFormat("TP Calc (BUY): Using Pivot High %.5f (Time: %s) as target, Buffer %.5f. TP: %.5f", 
+                     recent_pivot_high.price, TimeToString(recent_pivot_high.time), buffer_points_price_units, tp_price);
+        }
+      else
+        {
+         PrintFormat("TP Calc (BUY): Recent Pivot High not valid (Price: %.5f, Time: %s) or not above entry (%.5f). No TP calculated.",
+                     recent_pivot_high.price, TimeToString(recent_pivot_high.time), entry_price);
+         return 0.0; 
+        }
      }
-   else if(signal_type == -1) // SELL
+   else if(signal_type == -1) // SELL - Target a recent low pivot
      {
-      tp_price = entry_price - tp_distance_price;
+      if(recent_pivot_low.price > 0 && recent_pivot_low.price < entry_price)
+        {
+         tp_price = recent_pivot_low.price - buffer_points_price_units;
+         PrintFormat("TP Calc (SELL): Using Pivot Low %.5f (Time: %s) as target, Buffer %.5f. TP: %.5f", 
+                     recent_pivot_low.price, TimeToString(recent_pivot_low.time), buffer_points_price_units, tp_price);
+        }
+      else
+        {
+         PrintFormat("TP Calc (SELL): Recent Pivot Low not valid (Price: %.5f, Time: %s) or not below entry (%.5f). No TP calculated.",
+                     recent_pivot_low.price, TimeToString(recent_pivot_low.time), entry_price);
+         return 0.0; 
+        }
      }
-   else
+   else 
      {
       Print("TP Calc: Invalid signal_type provided: ", signal_type);
       return 0.0;
@@ -584,9 +672,16 @@ double CalculateTakeProfit(int signal_type, double entry_price, double stop_loss
 
    if(tp_price != 0.0)
      {
+      // Ensure TP is a minimum distance away from entry, similar to SL logic
+      double min_tp_distance_points = 1.0 * pip_to_points_multiplier; 
+      double current_tp_distance_points = MathAbs(entry_price - tp_price) / g_point_value;
+
+      if (g_point_value > 0 && current_tp_distance_points < min_tp_distance_points) { 
+          PrintFormat("TP Calc (%s): Calculated TP %.5f (Dist: %.1f pts) is too close to entry %.5f (MinDist: %.1f pts). Invalidating TP.", 
+                      (signal_type == 1 ? "BUY" : "SELL"), tp_price, current_tp_distance_points, entry_price, min_tp_distance_points);
+          return 0.0; 
+      }
       tp_price = NormalizeDouble(tp_price, g_digits_value);
-      PrintFormat("TP Calc (%s): Entry %.5f, SL %.5f, SL Dist %.5f, RR %.2f, TP Dist %.5f, TP: %.5f",
-                  (signal_type == 1 ? "BUY" : "SELL"), entry_price, stop_loss_price, sl_distance_price, InpRiskRewardRatio, tp_distance_price, tp_price);
      }
    return tp_price;
   }
@@ -598,8 +693,8 @@ double CalculateTakeProfit(int signal_type, double entry_price, double stop_loss
 ulong OpenTrade(ENUM_TRADE_DIRECTION direction, double lots_to_trade, double entry_price, double sl_price, double tp_price, string trade_comment)
   {
    CTrade trade; // Use local CTrade object for safety
-   trade.SetExpertMagicNumber(InpMagicNumber);
-   trade.SetDeviationInPoints(InpSlippage);
+   trade.SetExpertMagicNumber(MagicNumber);
+   trade.SetDeviationInPoints(Slippage);
    trade.SetTypeFillingBySymbol(_Symbol); // Or set specific filling type if needed
 
    bool trade_executed_successfully = false;
@@ -662,8 +757,8 @@ int OnInit()
    CalculateGMTOffset();
    
    // Clear the common command file on initialization to prevent processing old commands
-   FileDelete(InpCommonFileName, FILE_COMMON);
-   PrintFormat("OnInit: Cleared/Ensured common command file '%s' is removed before starting.", InpCommonFileName);
+   FileDelete(CommonFileName, FILE_COMMON);
+   PrintFormat("OnInit: Cleared/Ensured common command file '%s' is removed before starting.", CommonFileName);
 
    // Removed shared path logic, FILE_COMMON handles this.
    Print("File operations for inter-EA communication will use the common shared directory (FILE_COMMON).");
@@ -672,22 +767,22 @@ int OnInit()
    g_digits_value = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
    g_ea_version_str = "1.04"; 
 
-   h_adx_main = iADX(_Symbol, _Period, InpADX_Period);
+   h_adx_main = iADX(_Symbol, _Period, ADX_Period);
    if(h_adx_main == INVALID_HANDLE)
      {
       Print("Error creating ADX indicator handle. Error code: ", GetLastError());
       return(INIT_FAILED);
      }
     
-   g_min_bars_needed_for_ea = MathMax(InpPivotLookbackBars, InpADX_Period + InpDynamicADXMAPeriod + 5); 
-   g_min_bars_needed_for_ea = MathMax(g_min_bars_needed_for_ea, InpHA_MAPeriod + InpHA_SignalMAPeriod + 10); 
+   g_min_bars_needed_for_ea = MathMax(PivotLookbackBars, ADX_Period + DynamicADXMAPeriod + 5); 
+   g_min_bars_needed_for_ea = MathMax(g_min_bars_needed_for_ea, HA_MAPeriod + HA_SignalMAPeriod + 10); 
    g_min_bars_needed_for_ea = MathMax(g_min_bars_needed_for_ea, 200); 
-   g_min_bars_needed_for_ea = MathMax(g_min_bars_needed_for_ea, MathMax(InpSyn_M5_MACD_Slow, InpSyn_M5_EMA_Slow_Period) + 20); 
-   g_min_bars_needed_for_ea = MathMax(g_min_bars_needed_for_ea, MathMax(InpSyn_M15_MACD_Slow, InpSyn_M15_EMA_Slow_Period) + 20); 
-   g_min_bars_needed_for_ea = MathMax(g_min_bars_needed_for_ea, MathMax(InpSyn_H1_MACD_Slow, InpSyn_H1_EMA_Slow_Period) + 20); 
+   g_min_bars_needed_for_ea = MathMax(g_min_bars_needed_for_ea, MathMax(Syn_M5_MACD_Slow, Syn_M5_EMA_Slow_Period) + 20); 
+   g_min_bars_needed_for_ea = MathMax(g_min_bars_needed_for_ea, MathMax(Syn_M15_MACD_Slow, Syn_M15_EMA_Slow_Period) + 20); 
+   g_min_bars_needed_for_ea = MathMax(g_min_bars_needed_for_ea, MathMax(Syn_H1_MACD_Slow, Syn_H1_EMA_Slow_Period) + 20); 
 
 
-   if(InpPropStartBalanceOverride > 0.0) g_initial_challenge_balance_prop = InpPropStartBalanceOverride;
+   if(PropStartBalanceOverride > 0.0) g_initial_challenge_balance_prop = PropStartBalanceOverride;
    else g_initial_challenge_balance_prop = AccountInfoDouble(ACCOUNT_BALANCE);
    
    g_prop_balance_at_day_start = AccountInfoDouble(ACCOUNT_BALANCE); 
@@ -723,7 +818,7 @@ int OnInit()
       ulong ticket = PositionGetTicket(i);
       if(PositionSelectByTicket(ticket))
         {
-         if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber &&
+         if(PositionGetInteger(POSITION_MAGIC) == MagicNumber &&
             PositionGetString(POSITION_SYMBOL) == _Symbol)
            {
             double pos_sl = PositionGetDouble(POSITION_SL);
@@ -757,26 +852,32 @@ int OnInit()
    double daily_dd_limit_pct = 0.0, max_acc_dd_pct = 0.0, stage_target_pct = 0.0;
    if (g_initial_challenge_balance_prop > 0) 
      {
-      daily_dd_limit_pct = (InpDailyDDLimitDollars / g_initial_challenge_balance_prop) * 100.0;
-      max_acc_dd_pct     = (InpMaxAccountDDLimitDollars / g_initial_challenge_balance_prop) * 100.0;
-      stage_target_pct   = (InpStageTargetProfitDollars / g_initial_challenge_balance_prop) * 100.0;
+      daily_dd_limit_pct = (DailyDDLimitDollars / g_initial_challenge_balance_prop) * 100.0;
+      max_acc_dd_pct     = (MaxAccountDDLimitDollars / g_initial_challenge_balance_prop) * 100.0;
+      stage_target_pct   = (StageTargetProfitDollars / g_initial_challenge_balance_prop) * 100.0;
      }
 
    Dashboard_UpdateStaticInfo(
       g_ea_version_str,              
-      InpMagicNumber,                 
+      MagicNumber,                 
       g_initial_challenge_balance_prop, 
       daily_dd_limit_pct,             
       max_acc_dd_pct,                 
       stage_target_pct,               
-      InpMinTradingDaysTotal_Prop,    
+      MinTradingDaysTotal_Prop,    
       _Symbol,                        
       EnumToString(_Period),          
-      InpChallengeCost                
+      ChallengeCost                
    );
    
-   ChartVisuals_InitPivots(InpShowPivotVisuals, InpPivotUpColor, InpPivotDownColor);
-   ChartVisuals_InitMarketBias(InpShowMarketBiasVisual, InpMarketBiasUpColor, InpMarketBiasDownColor);
+   ChartVisuals_InitPivots(ShowPivotVisuals, PivotUpColor, PivotDownColor);
+   ChartVisuals_InitMarketBias(ShowMarketBiasVisual, MarketBiasUpColor, MarketBiasDownColor);
+   
+   // Debug PnL calculation on startup
+   if(ShowDetailedPnLDebug)
+   {
+       DebugPnLCalculation();
+   }
    
    Comment("SynPropEA1 Initialized. Waiting for signals...");
    return(INIT_SUCCEEDED);
@@ -791,12 +892,12 @@ void OnDeinit(const int reason)
    ChartVisuals_DeinitMarketBias();
 
    // Attempt to clear the common command file on deinitialization as a cleanup step
-   FileDelete(InpCommonFileName, FILE_COMMON);
-   PrintFormat("OnDeinit: Attempted to clear common command file '%s'.", InpCommonFileName);
+   FileDelete(CommonFileName, FILE_COMMON);
+   PrintFormat("OnDeinit: Attempted to clear common command file '%s'.", CommonFileName);
 
    // Clear position mapping file for clean restart
-   FileDelete(InpPositionMappingFile, FILE_COMMON);
-   PrintFormat("OnDeinit: Cleared position mapping file '%s'.", InpPositionMappingFile);
+   FileDelete(PositionMappingFile, FILE_COMMON);
+   PrintFormat("OnDeinit: Cleared position mapping file '%s'.", PositionMappingFile);
 
    Print("SynPropEA1 (Master) Deinitialized. Reason: ", reason);
    Comment("SynPropEA1 Deinitialized.");
@@ -811,9 +912,16 @@ void OnTick()
       PrevBarTime = iTime(_Symbol, _Period, 0);
       isNewBar = true;
      }
+   bool can_update_throttled_print_time = false;
+   if (TimeCurrent() - g_last_throttled_print_time >= ThrottledPrintIntervalSeconds) {
+       can_update_throttled_print_time = true;
+   }
 
-   UpdateEAOpenPositionsState(); // Update count and type of EA's open positions for this symbol
-   PrintFormat("OnTick: Immediately after UpdateEAOpenPositionsState, g_ea_open_positions_count = %d", g_ea_open_positions_count);
+   UpdateEAOpenPositionsState(); // Potentially throttled print inside this function
+   if(can_update_throttled_print_time) // Check if it meets condition BEFORE printing
+     {
+        PrintFormat("OnTick (Throttled): EA Open Positions Count = %d", g_ea_open_positions_count);
+     }
 
    MqlDateTime current_day_struct; TimeToStruct(TimeCurrent(), current_day_struct);
    current_day_struct.hour=0; current_day_struct.min=0; current_day_struct.sec=0;
@@ -833,7 +941,7 @@ void OnTick()
 
    // --- Daily Drawdown Check for Master EA ---   
    bool daily_dd_breached = false;
-   double daily_dd_floor = g_prop_balance_at_day_start - InpDailyDDLimitDollars;
+   double daily_dd_floor = g_prop_balance_at_day_start - DailyDDLimitDollars;
    if(AccountInfoDouble(ACCOUNT_EQUITY) <= daily_dd_floor)
      {
       daily_dd_breached = true;
@@ -847,6 +955,18 @@ void OnTick()
    // --- Process Slave Status File ---
    ProcessSlaveStatusFile();
    // --- End Process Slave Status File ---
+
+   // --- Determine if trading is allowed based on connection status (and standalone mode) ---
+   bool can_trade_based_on_connection_status = EnableStandaloneTestMode ? true : g_slave_is_connected;
+   if (!EnableStandaloneTestMode && !g_slave_is_connected)
+     {
+      current_status_msg = "Slave Disconnected - New Trades Off";
+     }
+   else if (EnableStandaloneTestMode)
+     {
+      // current_status_msg = "Standalone Test Mode"; // This might be overridden by other statuses like "No Signal"
+      if (!g_slave_is_connected) Print("EA1 is in Standalone Test Mode. Slave connection not required for trading.");
+     }
 
    // --- Check for slave trade confirmations (for position mapping) ---
    // Note: Currently using simplified approach where EA2 uses master ticket to identify positions
@@ -863,16 +983,16 @@ void OnTick()
       double refPriceForPivots = iClose(_Symbol, _Period, 1); 
       PrintFormat("--- New Bar Calculation for Bar Closed at: %s ---", TimeToString(currentCalcBarTime, TIME_DATE | TIME_MINUTES | TIME_SECONDS));
  
-      if(!InpDisableHABias)
+      if(!DisableHABias)
         {
          double current_HA_Bias_Oscillator = CalculateHeikinAshiBiasOscillator();
-         bool prevBiasPositiveState = prev_HA_Bias_Oscillator_Value > InpHA_BiasThreshold;
-         bool currentBiasPositiveState = current_HA_Bias_Oscillator > InpHA_BiasThreshold;
+         bool prevBiasPositiveState = prev_HA_Bias_Oscillator_Value > HA_BiasThreshold;
+         bool currentBiasPositiveState = current_HA_Bias_Oscillator > HA_BiasThreshold;
          biasChangedToBullish_MQL = !prevBiasPositiveState && currentBiasPositiveState;
          biasChangedToBearish_MQL = prevBiasPositiveState && !currentBiasPositiveState;
          val_HA_Bias_Oscillator = current_HA_Bias_Oscillator; 
          PrintFormat("HA Bias Osc (TF: %s, Value: %.5f). Prev Value: %.5f. ChangedToBull: %s, ChangedToBear: %s",
-                     EnumToString(InpHA_Timeframe), val_HA_Bias_Oscillator, prev_HA_Bias_Oscillator_Value, 
+                     EnumToString(HA_Timeframe), val_HA_Bias_Oscillator, prev_HA_Bias_Oscillator_Value, 
                      biasChangedToBullish_MQL ? "Yes" : "No", biasChangedToBearish_MQL ? "Yes" : "No");
          prev_HA_Bias_Oscillator_Value = val_HA_Bias_Oscillator;
         }
@@ -880,7 +1000,7 @@ void OnTick()
         { val_HA_Bias_Oscillator = 0.0; biasChangedToBullish_MQL = false; biasChangedToBearish_MQL = false; }
  
       double adx_main_buf[1], adx_plus_buf[1], adx_minus_buf[1];
-      if(Bars(_Symbol, _Period) > InpADX_Period + 1) 
+      if(Bars(_Symbol, _Period) > ADX_Period + 1) 
         {
          val_ADX_Main = (CopyBuffer(h_adx_main, 0, 1, 1, adx_main_buf) > 0) ? adx_main_buf[0] : -1.0;
          val_ADX_Plus = (CopyBuffer(h_adx_main, 1, 1, 1, adx_plus_buf) > 0) ? adx_plus_buf[0] : -1.0;
@@ -890,13 +1010,13 @@ void OnTick()
          PrintFormat("ADX Threshold: %.2f", val_ADX_Threshold);
         }
       else
-        { val_ADX_Main = -1.0; val_ADX_Plus = -1.0; val_ADX_Minus = -1.0; val_ADX_Threshold = InpStaticADXThreshold; }
+        { val_ADX_Main = -1.0; val_ADX_Plus = -1.0; val_ADX_Minus = -1.0; val_ADX_Threshold = StaticADXThreshold; }
  
-      if(!InpDisableSynergyScore)
+      if(!DisableSynergyScore)
         {
-         val_SynergyScore_M5 = CalculateSynergyScore(PERIOD_M5, InpSyn_M5_RSI_Period, InpSyn_M5_RSI_Weight, InpSyn_M5_EMA_Fast_Period, InpSyn_M5_EMA_Slow_Period, InpSyn_M5_Trend_Weight, InpSyn_M5_MACD_Fast, InpSyn_M5_MACD_Slow, InpSyn_M5_MACDV_Weight, 1);
-         val_SynergyScore_M15 = CalculateSynergyScore(PERIOD_M15, InpSyn_M15_RSI_Period, InpSyn_M15_RSI_Weight, InpSyn_M15_EMA_Fast_Period, InpSyn_M15_EMA_Slow_Period, InpSyn_M15_Trend_Weight, InpSyn_M15_MACD_Fast, InpSyn_M15_MACD_Slow, InpSyn_M15_MACDV_Weight, 1);
-         val_SynergyScore_H1 = CalculateSynergyScore(PERIOD_H1, InpSyn_H1_RSI_Period, InpSyn_H1_RSI_Weight, InpSyn_H1_EMA_Fast_Period, InpSyn_H1_EMA_Slow_Period, InpSyn_H1_Trend_Weight, InpSyn_H1_MACD_Fast, InpSyn_H1_MACD_Slow, InpSyn_H1_MACDV_Weight, 1);
+         val_SynergyScore_M5 = CalculateSynergyScore(PERIOD_M5, Syn_M5_RSI_Period, Syn_M5_RSI_Weight, Syn_M5_EMA_Fast_Period, Syn_M5_EMA_Slow_Period, Syn_M5_Trend_Weight, Syn_M5_MACD_Fast, Syn_M5_MACD_Slow, Syn_M5_MACDV_Weight, 1);
+         val_SynergyScore_M15 = CalculateSynergyScore(PERIOD_M15, Syn_M15_RSI_Period, Syn_M15_RSI_Weight, Syn_M15_EMA_Fast_Period, Syn_M15_EMA_Slow_Period, Syn_M15_Trend_Weight, Syn_M15_MACD_Fast, Syn_M15_MACD_Slow, Syn_M15_MACDV_Weight, 1);
+         val_SynergyScore_H1 = CalculateSynergyScore(PERIOD_H1, Syn_H1_RSI_Period, Syn_H1_RSI_Weight, Syn_H1_EMA_Fast_Period, Syn_H1_EMA_Slow_Period, Syn_H1_Trend_Weight, Syn_H1_MACD_Fast, Syn_H1_MACD_Slow, Syn_H1_MACDV_Weight, 1);
          val_TotalSynergyScore = val_SynergyScore_M5 + val_SynergyScore_M15 + val_SynergyScore_H1;
          PrintFormat("Synergy (M5:%.2f, M15:%.2f, H1:%.2f, Total:%.2f) on bar close", val_SynergyScore_M5, val_SynergyScore_M15, val_SynergyScore_H1, val_TotalSynergyScore);
         }
@@ -913,37 +1033,37 @@ void OnTick()
       signal = GetTradingSignal(); // Get the potential signal first
 
       // Check slave connection status BEFORE allowing any new trade consideration
-      if (!g_slave_is_connected)
+      if (!can_trade_based_on_connection_status) // Use the new combined variable here
         {
-         Print("Master EA: Slave EA is not connected or status is stale. New trades are disabled.");
-         current_status_msg = "Slave Disconnected - New Trades Off";
-         // Allow_new_trade remains false, existing trades will continue to be managed by their SL/TP by broker or EA logic not dependent on new signals.
+         Print("Master EA: Slave EA not connected (or not required in Standalone Mode but still checked for message). New trades are disabled if not in Standalone Mode.");
+         // current_status_msg is already set if slave is disconnected and not in standalone
+         // If in standalone, this block won't prevent allow_new_trade from being true later
         }
       else if (daily_dd_breached) // Check if daily DD was breached on Master account
         {
-          // Message is already set, allow_new_trade remains false
           Print("Master EA: Daily DD limit breached. New trades disabled.");
+          current_status_msg = StringFormat("Daily DD Limit Hit! Equity %.2f <= Floor %.2f", AccountInfoDouble(ACCOUNT_EQUITY), daily_dd_floor); 
         }
-      else if(g_ea_open_positions_count == 0) { // Slave is connected, DD not breached, check for open positions
-          allow_new_trade = true; // No open trades, can open new one if signal exists
-      } else { // Existing EA trade(s) open & Slave is connected & DD not breached
-          if (g_ea_open_positions_count < InpPyramidingMaxOrders) {
-              // Check if new signal is in the same direction as existing trades
+      else if(g_ea_open_positions_count == 0) { 
+          allow_new_trade = true; 
+      } else { 
+          if (g_ea_open_positions_count < PyramidingMaxOrders) {
               if (signal == 1 && g_ea_open_positions_type == ORDER_TYPE_BUY) {
                   allow_new_trade = true;
                   Print("Pyramiding Check: Existing LONG, new LONG signal. Pyramiding allowed.");
               } else if (signal == -1 && g_ea_open_positions_type == ORDER_TYPE_SELL) {
                   allow_new_trade = true;
                   Print("Pyramiding Check: Existing SHORT, new SHORT signal. Pyramiding allowed.");
-              } else if (signal != 0) { // New signal exists but is opposite or type mismatch
+              } else if (signal != 0) { 
                   PrintFormat("Pyramiding Check: Existing %s, new %s signal. Opposite trade NOT allowed.", EnumToString(g_ea_open_positions_type), (signal==1?"LONG":"SHORT"));
               }
           } else {
-              PrintFormat("Pyramiding Check: Max orders (%d) already open. No further pyramiding.", InpPyramidingMaxOrders);
+              PrintFormat("Pyramiding Check: Max orders (%d) already open. No further pyramiding.", PyramidingMaxOrders);
           }
       }
       
-      if(is_session_active && InpAllowTrades && allow_new_trade && signal != 0 && g_slave_is_connected && !daily_dd_breached) // Added daily_dd_breached check
+      // Final check before attempting trade operations
+      if(is_session_active && AllowTrades && allow_new_trade && signal != 0 && can_trade_based_on_connection_status && !daily_dd_breached)
         {
          if(signal == 1) { current_status_msg = "Signal: LONG"; }
          else if(signal == -1) { current_status_msg = "Signal: SHORT"; }
@@ -1003,63 +1123,64 @@ void OnTick()
        else // Conditions for new trade not met
         {
           if (!is_session_active) { current_status_msg = "Session Inactive"; }
-          else if (!InpAllowTrades) { current_status_msg = "Trading Disabled"; }
-          else if (daily_dd_breached) { /* status already set */ }
-          else if (!g_slave_is_connected && signal !=0) {current_status_msg = "Slave N/A - New Trades Off";} // Specific message if slave is the issue
+          else if (!AllowTrades) { current_status_msg = "Trading Disabled"; }
+          else if (daily_dd_breached) { /* status already set by daily_dd_breached block */ }
+          else if (!can_trade_based_on_connection_status && !EnableStandaloneTestMode) {current_status_msg = "Slave N/A - New Trades Off";}
+          else if (EnableStandaloneTestMode && signal == 0 && g_ea_open_positions_count == 0) { current_status_msg = "Standalone - No Signal";}
           else if (signal == 0 && g_ea_open_positions_count == 0) { current_status_msg = "In Session - No Signal"; }
-          else if (g_ea_open_positions_count >= InpPyramidingMaxOrders) { current_status_msg = "Max Orders Open"; }
+          else if (g_ea_open_positions_count >= PyramidingMaxOrders) { current_status_msg = "Max Orders Open"; }
           else if (g_ea_open_positions_count > 0) { current_status_msg = StringFormat("Position Open (%s)", EnumToString(g_ea_open_positions_type));}
-          else { current_status_msg = "No Trade Condition"; } // Generic if other conditions fail
-          if (signal !=0 ) Print("Trade conditions not fully met (AllowTrades, Session, Pyramiding rules). No new trade initiated.");
+          else { current_status_msg = "No Trade Condition"; } 
+          if (signal !=0 ) Print("Trade conditions not fully met (Session, AllowTrades, Pyramiding, Connection, DD). No new trade initiated.");
         }
         
-      ChartVisuals_UpdatePivots(InpShowPivotVisuals, InpPivotDownColor, InpPivotUpColor); 
-      ChartVisuals_UpdateMarketBias(val_HA_Bias_Oscillator, InpShowMarketBiasVisual); 
+      ChartVisuals_UpdatePivots(ShowPivotVisuals, PivotDownColor, PivotUpColor); 
+      ChartVisuals_UpdateMarketBias(val_HA_Bias_Oscillator, ShowMarketBiasVisual, MarketBiasUpColor, MarketBiasDownColor); 
       // Update dashboard status based on whether we are actively looking for a trade signal
       bool can_look_for_trade = is_session_active && 
-                               InpAllowTrades && 
-                               !daily_dd_breached && // Moved this up as it's a primary gate
-                               ( 
-                                 (g_ea_open_positions_count < InpPyramidingMaxOrders) || 
-                                 ( 
-                                   (g_ea_open_positions_count > 0 && signal != 0) && 
-                                   ( 
-                                     (signal == 1 && g_ea_open_positions_type == ORDER_TYPE_BUY) || 
-                                     (signal == -1 && g_ea_open_positions_type == ORDER_TYPE_SELL) 
-                                   ) 
-                                 ) 
-                               ); 
+                               AllowTrades && 
+                               allow_new_trade && // allow_new_trade already incorporates connection status and DD checks
+                               signal != 0 && 
+                               !daily_dd_breached; // Redundant if allow_new_trade handles it, but safe
+                               
       Dashboard_UpdateStatus(current_status_msg, (signal != 0 && can_look_for_trade) ); 
       Dashboard_UpdateSlaveStatus(g_slave_status_text, g_slave_balance, g_slave_equity, g_slave_daily_pnl, g_slave_is_connected, 
-                                 g_slave_account_number, g_slave_account_currency, g_slave_open_volume, g_slave_leverage, g_slave_server);
+                                 g_slave_account_number, g_slave_account_currency, g_slave_open_volume, g_slave_leverage, g_slave_server,
+                                 g_slave_last_update_in_file); // Added g_slave_last_update_in_file
      } 
     else if (Bars(_Symbol, _Period) >= g_min_bars_needed_for_ea && !isNewBar) 
      {
         // Update status message on non-new-bar ticks
         if (!is_session_active) { current_status_msg = "Session Inactive"; }
-        else if (!InpAllowTrades) { current_status_msg = "Trading Disabled"; }
+        else if (!AllowTrades) { current_status_msg = "Trading Disabled"; }
         else if (daily_dd_breached) { 
             current_status_msg = StringFormat("Daily DD Limit Hit! Equity %.2f <= Floor %.2f. No new trades.", 
                                           AccountInfoDouble(ACCOUNT_EQUITY), daily_dd_floor);
         }
-        else if (g_ea_open_positions_count >= InpPyramidingMaxOrders) { current_status_msg = "Max Orders Open"; }
+        else if (g_ea_open_positions_count >= PyramidingMaxOrders) { current_status_msg = "Max Orders Open"; }
         else if (g_ea_open_positions_count > 0) { current_status_msg = StringFormat("Position Open (%s)", EnumToString(g_ea_open_positions_type));}
         else { current_status_msg = "Monitoring...";  }
         Dashboard_UpdateStatus(current_status_msg, false); // Not actively signaling on non-new-bar
+        // Also update slave status on non-new bar ticks for continuous slave info update
+        Dashboard_UpdateSlaveStatus(g_slave_status_text, g_slave_balance, g_slave_equity, g_slave_daily_pnl, g_slave_is_connected, 
+                                 g_slave_account_number, g_slave_account_currency, g_slave_open_volume, g_slave_leverage, g_slave_server,
+                                 g_slave_last_update_in_file); // Added g_slave_last_update_in_file here as well
      }
+
+   // Calculate Master EA's PnL from today's closed deals
+   double master_todays_closed_pnl = CalculateTodaysClosedPnL(MagicNumber);
 
    Dashboard_UpdateDynamicInfo(
       AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY),
+      master_todays_closed_pnl, // <-- Pass the new PnL calculation here
       g_prop_balance_at_day_start, g_prop_highest_equity_peak, g_prop_current_trading_days,    
-      // Slave data now passed via Dashboard_UpdateSlaveStatus
       is_session_active,
-      // Add master EA's volume
       g_ea_open_positions_count > 0 ? PositionGetDouble(POSITION_VOLUME) : 0.0,
       daily_dd_floor, // Pass the calculated daily DD floor for display
-      InpDailyDDLimitDollars, // Pass the limit itself
-      g_initial_challenge_balance_prop - InpMaxAccountDDLimitDollars, // Static Max DD Floor
-      g_prop_highest_equity_peak - InpMaxAccountDDLimitDollars, // Trailing Max DD Floor from Peak
-      InpMaxAccountDDLimitDollars // Pass the Max DD limit itself
+      DailyDDLimitDollars, // Pass the limit itself
+      g_initial_challenge_balance_prop - MaxAccountDDLimitDollars, // Static Max DD Floor
+      g_prop_highest_equity_peak - MaxAccountDDLimitDollars, // Trailing Max DD Floor from Peak
+      MaxAccountDDLimitDollars // Pass the Max DD limit itself
    );
 
    string comment_str;
@@ -1112,9 +1233,9 @@ bool CalculateSMAOnArray(const double &source_array[], int source_total, int per
 //+------------------------------------------------------------------+
 double CalculateHeikinAshiBiasOscillator() 
   {
-   ENUM_TIMEFRAMES ha_tf = InpHA_Timeframe;
-   int ma_period = InpHA_MAPeriod;
-   int signal_period = InpHA_SignalMAPeriod;
+   ENUM_TIMEFRAMES ha_tf = HA_Timeframe;
+   int ma_period = HA_MAPeriod;
+   int signal_period = HA_SignalMAPeriod;
 
    int ha_values_needed_for_mas = ma_period + signal_period -1; 
     if(ha_values_needed_for_mas <=0) ha_values_needed_for_mas=1; 
@@ -1234,23 +1355,23 @@ double CalculateHeikinAshiBiasOscillator()
 //+------------------------------------------------------------------+
 double CalculateADXThreshold()
   {
-   if(!InpUseDynamicADX)
+   if(!UseDynamicADX)
      {
-      return InpStaticADXThreshold;
+      return StaticADXThreshold;
      }
-   if(Bars(_Symbol, _Period) < InpADX_Period + InpDynamicADXMAPeriod + 2) 
+   if(Bars(_Symbol, _Period) < ADX_Period + DynamicADXMAPeriod + 2) 
      {
       PrintFormat("CalculateADXThreshold: Not enough bars (%d) on %s for dynamic ADX threshold. Need %d. Using static.",
-                  (int)Bars(_Symbol, _Period), EnumToString(_Period), InpADX_Period + InpDynamicADXMAPeriod + 2);
-      return InpStaticADXThreshold;
+                  (int)Bars(_Symbol, _Period), EnumToString(_Period), ADX_Period + DynamicADXMAPeriod + 2);
+      return StaticADXThreshold;
      }
      
-   int adx_ma_period = InpDynamicADXMAPeriod;
+   int adx_ma_period = DynamicADXMAPeriod;
    double adx_history[];
    if(ArrayResize(adx_history, adx_ma_period) < 0) 
      {
       Print("CalculateADXThreshold: Error resizing adx_history array");
-      return InpStaticADXThreshold;
+      return StaticADXThreshold;
      }
 
    int copied = CopyBuffer(h_adx_main, 0, 1, adx_ma_period, adx_history); 
@@ -1258,7 +1379,7 @@ double CalculateADXThreshold()
      {
       PrintFormat("CalculateADXThreshold: Not enough ADX history copied for dynamic threshold MA. Requested %d, Copied %d. Using static.",
                   adx_ma_period, copied);
-      return InpStaticADXThreshold;
+      return StaticADXThreshold;
      }
      
    double adx_sum = 0;
@@ -1275,13 +1396,13 @@ double CalculateADXThreshold()
    if(count == 0)          
      {
       Print("CalculateADXThreshold: No valid ADX values found for SMA. Using static.");
-      return InpStaticADXThreshold; 
+      return StaticADXThreshold; 
      }
      
    double adx_sma = adx_sum / count;
-   double dynamic_threshold = adx_sma * InpDynamicADXMultiplier;
+   double dynamic_threshold = adx_sma * DynamicADXMultiplier;
    
-   return MathMax(dynamic_threshold, InpADXMinThreshold); 
+   return MathMax(dynamic_threshold, ADXMinThreshold); 
   }
 
 //+------------------------------------------------------------------+
@@ -1364,23 +1485,24 @@ void CalculatePivots(PivotPoint &overall_highest_pivot_h, PivotPoint &overall_lo
    overall_lowest_pivot_l.price = DBL_MAX; 
 
    int bars_available = (int)Bars(_Symbol, _Period); 
-   if(bars_available <= InpPivotLeftBars + InpPivotRightBars + 1) return;
+   if(bars_available <= PivotLeftBars + PivotRightBars + 1) return;
    
-   int local_lookback = MathMin(InpPivotLookbackBars, bars_available - (InpPivotLeftBars + InpPivotRightBars +1));
-   local_lookback = MathMax(local_lookback, InpPivotLeftBars + InpPivotRightBars + 1);
+   int local_lookback = MathMin(PivotLookbackBars, bars_available - (PivotLeftBars + PivotRightBars +1));
+   local_lookback = MathMax(local_lookback, PivotLeftBars + PivotRightBars + 1);
 
 
-   int max_scan_shift = MathMin(local_lookback - 1, bars_available - 1 - InpPivotLeftBars);
-   max_scan_shift = MathMax(InpPivotRightBars, max_scan_shift);
+   int max_scan_shift = MathMin(local_lookback - 1, bars_available - 1 - PivotLeftBars);
+   max_scan_shift = MathMax(PivotRightBars, max_scan_shift);
+   PrintFormat("CalculatePivots: PivotLookbackBars=%d, local_lookback=%d, max_scan_shift=%d", PivotLookbackBars, local_lookback, max_scan_shift);
 
-   for(int i = InpPivotRightBars; i <= max_scan_shift; i++) 
+   for(int i = PivotRightBars; i <= max_scan_shift; i++) 
      {
-      if(i + InpPivotLeftBars >= bars_available || i - InpPivotRightBars < 0) continue;
+      if(i + PivotLeftBars >= bars_available || i - PivotRightBars < 0) continue;
       bool is_high = true;
       double candidate_price = iHigh(_Symbol, _Period, i);
-      for(int L = 1; L <= InpPivotLeftBars; L++) if(candidate_price <= iHigh(_Symbol, _Period, i + L)) {is_high=false; break;}
+      for(int L = 1; L <= PivotLeftBars; L++) if(candidate_price <= iHigh(_Symbol, _Period, i + L)) {is_high=false; break;}
       if(!is_high) continue;
-      for(int R = 1; R <= InpPivotRightBars; R++) if(candidate_price < iHigh(_Symbol, _Period, i - R)) {is_high=false; break;} 
+      for(int R = 1; R <= PivotRightBars; R++) if(candidate_price < iHigh(_Symbol, _Period, i - R)) {is_high=false; break;} 
       
       if(is_high && candidate_price > ref_price) 
         {
@@ -1392,14 +1514,14 @@ void CalculatePivots(PivotPoint &overall_highest_pivot_h, PivotPoint &overall_lo
         }
      }
 
-   for(int i = InpPivotRightBars; i <= max_scan_shift; i++) 
+   for(int i = PivotRightBars; i <= max_scan_shift; i++) 
      {
-      if(i + InpPivotLeftBars >= bars_available || i - InpPivotRightBars < 0) continue;
+      if(i + PivotLeftBars >= bars_available || i - PivotRightBars < 0) continue;
       bool is_low = true;
       double candidate_price = iLow(_Symbol, _Period, i);
-      for(int L = 1; L <= InpPivotLeftBars; L++) if(candidate_price >= iLow(_Symbol, _Period, i + L)) {is_low=false; break;}
+      for(int L = 1; L <= PivotLeftBars; L++) if(candidate_price >= iLow(_Symbol, _Period, i + L)) {is_low=false; break;}
       if(!is_low) continue;
-      for(int R = 1; R <= InpPivotRightBars; R++) if(candidate_price > iLow(_Symbol, _Period, i - R)) {is_low=false; break;} 
+      for(int R = 1; R <= PivotRightBars; R++) if(candidate_price > iLow(_Symbol, _Period, i - R)) {is_low=false; break;} 
 
       if(is_low && candidate_price < ref_price) 
         {
@@ -1416,13 +1538,17 @@ void CalculatePivots(PivotPoint &overall_highest_pivot_h, PivotPoint &overall_lo
 //+------------------------------------------------------------------+
 int GetTradingSignal() 
   {
-   bool adx_ok = (val_ADX_Main > val_ADX_Threshold && val_ADX_Main > 0 && val_ADX_Main != -1.0);
+   bool adx_ok = true; // Default to true if ADX filter is off
+   if(UseADXFilter) // Only evaluate ADX conditions if the main filter is ON
+     {
+      adx_ok = (val_ADX_Main > val_ADX_Threshold && val_ADX_Main > 0 && val_ADX_Main != -1.0);
+     }
    
-   bool ha_bias_long_ok = InpDisableHABias ? true : biasChangedToBullish_MQL;
-   bool ha_bias_short_ok = InpDisableHABias ? true : biasChangedToBearish_MQL;
+   bool ha_bias_long_ok = DisableHABias ? true : biasChangedToBullish_MQL;
+   bool ha_bias_short_ok = DisableHABias ? true : biasChangedToBearish_MQL;
  
-   bool synergy_long_ok = InpDisableSynergyScore ? true : (val_TotalSynergyScore > 0); 
-   bool synergy_short_ok = InpDisableSynergyScore ? true : (val_TotalSynergyScore < 0); 
+   bool synergy_long_ok = DisableSynergyScore ? true : (val_TotalSynergyScore > 0); 
+   bool synergy_short_ok = DisableSynergyScore ? true : (val_TotalSynergyScore < 0); 
 
    if(synergy_long_ok && ha_bias_long_ok && adx_ok)
      {
@@ -1442,7 +1568,7 @@ void WriteCommandToSlaveFile(string command_type, ulong master_ticket,
                              string symbol="", double lots=0, double entry_price=0, 
                              double sl_price=0, double tp_price=0) // Made params optional
   {
-   if(InpCommonFileName == "")
+   if(CommonFileName == "")
      {
       Print("WriteCommandToSlaveFile: Common command file name is not set. Cannot write command.");
       return;
@@ -1456,7 +1582,7 @@ void WriteCommandToSlaveFile(string command_type, ulong master_ticket,
    for(int attempt = 1; attempt <= max_retries && !file_written_successfully; attempt++)
    {
        // Use a temporary file first, then atomic rename for better reliability
-       string temp_filename = InpCommonFileName + ".tmp";
+       string temp_filename = CommonFileName + ".tmp";
        
        // Clean up any existing temp file from previous failed attempts
        FileDelete(temp_filename, FILE_COMMON);
@@ -1518,7 +1644,7 @@ void WriteCommandToSlaveFile(string command_type, ulong master_ticket,
 
        // Generate unique timestamp with microsecond precision to avoid duplicate detection issues
        long current_time_long = TimeCurrent();
-       int microsecond_component = GetTickCount() % 1000; // Add millisecond precision
+       int microsecond_component = (int)((long)GetTickCount() % 1000); // Add millisecond precision, cast to long first, then int
        string unique_timestamp = IntegerToString(current_time_long) + "." + IntegerToString(microsecond_component);
        FileWrite(g_common_command_file_handle, unique_timestamp);
        
@@ -1533,13 +1659,13 @@ void WriteCommandToSlaveFile(string command_type, ulong master_ticket,
        
        // Now atomically move temp file to final destination
        // Delete the old file first
-       FileDelete(InpCommonFileName, FILE_COMMON);
+       FileDelete(CommonFileName, FILE_COMMON);
        
        // Try to move temp to final (MT5 doesn't have rename, so we copy and delete)
        int temp_read_handle = FileOpen(temp_filename, FILE_READ|FILE_BIN|FILE_COMMON);
        if(temp_read_handle != INVALID_HANDLE)
        {
-           int final_write_handle = FileOpen(InpCommonFileName, FILE_WRITE|FILE_BIN|FILE_COMMON);
+           int final_write_handle = FileOpen(CommonFileName, FILE_WRITE|FILE_BIN|FILE_COMMON);
            if(final_write_handle != INVALID_HANDLE)
            {
                // Copy file content
@@ -1582,7 +1708,7 @@ void WriteCommandToSlaveFile(string command_type, ulong master_ticket,
 //+------------------------------------------------------------------+
 void ProcessSlaveStatusFile()
   {
-   if(InpSlaveStatusFile == "")
+   if(SlaveStatusFile == "")
      {
       g_slave_is_connected = false;
       g_slave_status_text = "Slave File N/A";
@@ -1594,14 +1720,14 @@ void ProcessSlaveStatusFile()
    // Don't reset text immediately, keep last known if file read fails temporarily
 
     // Added FILE_COMMON flag
-   g_slave_status_file_handle = FileOpen(InpSlaveStatusFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
+   g_slave_status_file_handle = FileOpen(SlaveStatusFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
    if(g_slave_status_file_handle == INVALID_HANDLE)
      {
       // Only update status text if it's not already indicating a file error, to avoid spamming logs
       if(g_slave_last_update_processed_time == 0 || TimeCurrent() - g_slave_last_update_processed_time > 60) // e.g. if no update for 1 min
       {
         g_slave_status_text = "Slave File Read Err";
-        // PrintFormat("ProcessSlaveStatusFile: Error opening slave status file '%s'. Error: %d", InpSlaveStatusFile, GetLastError());
+        // PrintFormat("ProcessSlaveStatusFile: Error opening slave status file '%s'. Error: %d", SlaveStatusFile, GetLastError());
       }
       g_slave_is_connected = false;
       return;
@@ -1624,6 +1750,8 @@ void ProcessSlaveStatusFile()
 
       // Read new fields if available (to maintain some backward compatibility if file is old format temporarily)
       if(!FileIsLineEnding(g_slave_status_file_handle)) s_open_volume = FileReadString(g_slave_status_file_handle);
+      PrintFormat("ProcessSlaveStatusFile: Read s_open_volume string: '%s'", s_open_volume); // DEBUG
+
       if(!FileIsLineEnding(g_slave_status_file_handle)) s_leverage = FileReadString(g_slave_status_file_handle);
       if(!FileIsLineEnding(g_slave_status_file_handle)) s_server = FileReadString(g_slave_status_file_handle);
       
@@ -1645,6 +1773,8 @@ void ProcessSlaveStatusFile()
             // Process new fields if they were read
             if(s_open_volume != "") g_slave_open_volume = StringToDouble(s_open_volume);
             else g_slave_open_volume = 0.0; // Default if not present
+            PrintFormat("ProcessSlaveStatusFile: Parsed g_slave_open_volume: %.2f", g_slave_open_volume); // DEBUG
+
             if(s_leverage != "") g_slave_leverage = (int)StringToInteger(s_leverage);
             else g_slave_leverage = 0;
             if(s_server != "") g_slave_server = s_server;
@@ -1744,7 +1874,7 @@ void OnTradeTransaction(const MqlTradeTransaction& trans,
          // Check if this position is one of ours by magic number and symbol
          if(PositionSelectByTicket(trans.position))
            {
-            if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber && PositionGetString(POSITION_SYMBOL) == _Symbol)
+            if(PositionGetInteger(POSITION_MAGIC) == MagicNumber && PositionGetString(POSITION_SYMBOL) == _Symbol)
               {
                // It's our position. Check if it's being tracked.
                int tracked_idx = FindTrackedPositionIndex(trans.position);
@@ -1879,16 +2009,16 @@ void UntrackMasterPosition(ulong ticket_to_untrack)
 //+------------------------------------------------------------------+
 void SavePositionMapping(ulong master_ticket, ulong slave_ticket)
   {
-   if(InpPositionMappingFile == "")
+   if(PositionMappingFile == "")
      {
       Print("SavePositionMapping: Position mapping file name not set.");
       return;
      }
 
-   int mapping_handle = FileOpen(InpPositionMappingFile, FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
+   int mapping_handle = FileOpen(PositionMappingFile, FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
    if(mapping_handle == INVALID_HANDLE)
      {
-      PrintFormat("SavePositionMapping: Error opening position mapping file %s. Error: %d", InpPositionMappingFile, GetLastError());
+      PrintFormat("SavePositionMapping: Error opening position mapping file %s. Error: %d", PositionMappingFile, GetLastError());
       return;
      }
 
@@ -1903,7 +2033,7 @@ void SavePositionMapping(ulong master_ticket, ulong slave_ticket)
    FileClose(mapping_handle);
    
    // Reopen in append mode
-   mapping_handle = FileOpen(InpPositionMappingFile, FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
+   mapping_handle = FileOpen(PositionMappingFile, FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
    if(mapping_handle != INVALID_HANDLE)
      {
       FileSeek(mapping_handle, 0, SEEK_END); // Append to end
@@ -1928,7 +2058,7 @@ void SavePositionMapping(ulong master_ticket, ulong slave_ticket)
 
 void RemovePositionMapping(ulong master_ticket)
   {
-   if(InpPositionMappingFile == "")
+   if(PositionMappingFile == "")
      {
       Print("RemovePositionMapping: Position mapping file name not set.");
       return;
@@ -1938,7 +2068,7 @@ void RemovePositionMapping(ulong master_ticket)
    string temp_mappings[][5]; // MasterTicket, SlaveTicket, Symbol, Comment, Timestamp
    int mapping_count = 0;
    
-   int read_handle = FileOpen(InpPositionMappingFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
+   int read_handle = FileOpen(PositionMappingFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
    if(read_handle != INVALID_HANDLE)
      {
       // Skip header
@@ -1975,7 +2105,7 @@ void RemovePositionMapping(ulong master_ticket)
      }
 
    // Rewrite file with remaining mappings
-   int write_handle = FileOpen(InpPositionMappingFile, FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
+   int write_handle = FileOpen(PositionMappingFile, FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
    if(write_handle != INVALID_HANDLE)
      {
       // Write header
@@ -2001,13 +2131,13 @@ void RemovePositionMapping(ulong master_ticket)
 
 ulong GetSlaveTicketForMaster(ulong master_ticket)
   {
-   if(InpPositionMappingFile == "")
+   if(PositionMappingFile == "")
      {
       Print("GetSlaveTicketForMaster: Position mapping file name not set.");
       return 0;
      }
 
-   int read_handle = FileOpen(InpPositionMappingFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
+   int read_handle = FileOpen(PositionMappingFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
    if(read_handle == INVALID_HANDLE)
      {
       // File doesn't exist yet, which is normal for new installations
@@ -2049,7 +2179,7 @@ ulong GetSlaveTicketForMaster(ulong master_ticket)
 
 void RestorePositionMappingsOnInit()
   {
-   if(InpPositionMappingFile == "")
+   if(PositionMappingFile == "")
      {
       Print("RestorePositionMappingsOnInit: Position mapping file name not set.");
       return;
@@ -2057,7 +2187,7 @@ void RestorePositionMappingsOnInit()
 
    Print("RestorePositionMappingsOnInit: Attempting to restore position mappings from file...");
 
-   int read_handle = FileOpen(InpPositionMappingFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
+   int read_handle = FileOpen(PositionMappingFile, FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON, g_csv_delimiter);
    if(read_handle == INVALID_HANDLE)
      {
       Print("RestorePositionMappingsOnInit: No existing position mapping file found. This is normal for first run.");
@@ -2092,7 +2222,7 @@ void RestorePositionMappingsOnInit()
          // Check if master position still exists
          if(PositionSelectByTicket(master_ticket))
            {
-            if(PositionGetInteger(POSITION_MAGIC) == InpMagicNumber)
+            if(PositionGetInteger(POSITION_MAGIC) == MagicNumber)
               {
                // Position exists and belongs to us, restore tracking
                double pos_sl = PositionGetDouble(POSITION_SL);
@@ -2128,3 +2258,229 @@ void CheckForSlaveTradeConfirmations()
 //+------------------------------------------------------------------+
 //| End of Position Mapping Functions                               |
 //+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//| Calculate Today's PnL from Closed Deals (Enhanced with Debug)  |
+//+------------------------------------------------------------------+
+double CalculateTodaysClosedPnL(int magic_target)
+{
+    double todays_pnl = 0.0;
+    double todays_pnl_all_deals = 0.0; // For comparison - all deals regardless of magic
+    int deals_included = 0;
+    int deals_excluded_magic = 0;
+    int deals_excluded_symbol = 0;
+    int deals_excluded_time = 0;
+    int deals_excluded_type = 0;
+    int total_deals_today = 0;
+    
+    // Calculate today's start more accurately
+    MqlDateTime dt_struct;
+    TimeToStruct(TimeCurrent(), dt_struct);
+    dt_struct.hour = 0;
+    dt_struct.min = 0;
+    dt_struct.sec = 0;
+    datetime today_start = StructToTime(dt_struct);
+    datetime tomorrow_start = today_start + 86400; // 24 hours
+    
+    PrintFormat("CalculateTodaysClosedPnL: Today start: %s, Tomorrow start: %s, Target Magic: %d, Symbol: %s", 
+                TimeToString(today_start, TIME_DATE|TIME_SECONDS), 
+                TimeToString(tomorrow_start, TIME_DATE|TIME_SECONDS), 
+                magic_target, _Symbol);
+
+    if(!HistorySelect(today_start, TimeCurrent())) // Select history from today's start
+    {
+        Print("CalculateTodaysClosedPnL: Error selecting history! Code: ", GetLastError());
+        return 0.0;
+    }
+
+    int deals_total = HistoryDealsTotal();
+    if(ShowDetailedPnLDebug)
+    {
+        PrintFormat("CalculateTodaysClosedPnL: Total deals in history selection: %d", deals_total);
+    }
+    
+    for(int i = 0; i < deals_total; i++)
+    {
+        ulong deal_ticket = HistoryDealGetTicket(i);
+        if(deal_ticket > 0)
+        {
+            datetime deal_time = (datetime)HistoryDealGetInteger(deal_ticket, DEAL_TIME);
+            long deal_magic = HistoryDealGetInteger(deal_ticket, DEAL_MAGIC);
+            ENUM_DEAL_ENTRY deal_entry = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(deal_ticket, DEAL_ENTRY);
+            string deal_symbol = HistoryDealGetString(deal_ticket, DEAL_SYMBOL);
+            double deal_profit = HistoryDealGetDouble(deal_ticket, DEAL_PROFIT);
+            double deal_volume = HistoryDealGetDouble(deal_ticket, DEAL_VOLUME);
+            ENUM_DEAL_TYPE deal_type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(deal_ticket, DEAL_TYPE);
+            
+            // Check time range
+            bool time_ok = (deal_time >= today_start && deal_time < tomorrow_start);
+            bool symbol_ok = (deal_symbol == _Symbol);
+            bool magic_ok = (deal_magic == magic_target);
+            bool entry_ok = (deal_entry == DEAL_ENTRY_OUT);
+            bool is_trade_deal = (deal_type == DEAL_TYPE_BUY || deal_type == DEAL_TYPE_SELL);
+            
+            if(time_ok && symbol_ok && is_trade_deal)
+            {
+                total_deals_today++;
+                todays_pnl_all_deals += deal_profit; // Add to total regardless of magic
+                
+                // Log every deal for debugging (limit to first 20 to avoid spam)
+                if(ShowDetailedPnLDebug && total_deals_today <= 20)
+                {
+                    PrintFormat("Deal #%d: Ticket=%d, Time=%s, Magic=%d, Symbol=%s, Entry=%s, Type=%s, Profit=%.2f, Volume=%.2f", 
+                                total_deals_today, deal_ticket, TimeToString(deal_time, TIME_SECONDS), 
+                                deal_magic, deal_symbol, EnumToString(deal_entry), EnumToString(deal_type), 
+                                deal_profit, deal_volume);
+                }
+            }
+            
+            // Count exclusions for analysis
+            if(!time_ok) deals_excluded_time++;
+            else if(!symbol_ok) deals_excluded_symbol++;
+            else if(!is_trade_deal) deals_excluded_type++;
+            else if(!entry_ok && symbol_ok && is_trade_deal) 
+            {
+                // This is a trade deal for our symbol but not a closing deal
+                if(ShowDetailedPnLDebug && total_deals_today <= 20)
+                {
+                    PrintFormat("Non-closing deal: Ticket=%d, Entry=%s, Magic=%d, Profit=%.2f", 
+                                deal_ticket, EnumToString(deal_entry), deal_magic, deal_profit);
+                }
+            }
+            
+            // Apply all filters for EA's PnL
+            if(time_ok && symbol_ok && magic_ok && entry_ok && is_trade_deal)
+            {
+                todays_pnl += deal_profit;
+                deals_included++;
+            }
+            else if(time_ok && symbol_ok && is_trade_deal && entry_ok && !magic_ok)
+            {
+                deals_excluded_magic++;
+            }
+        }
+    }
+    
+    PrintFormat("CalculateTodaysClosedPnL SUMMARY:");
+    PrintFormat("  - Total deals today (%s): %d", _Symbol, total_deals_today);
+    PrintFormat("  - Deals included (Magic %d): %d", magic_target, deals_included);
+    PrintFormat("  - Deals excluded (wrong magic): %d", deals_excluded_magic);
+    PrintFormat("  - Deals excluded (wrong symbol): %d", deals_excluded_symbol);
+    PrintFormat("  - Deals excluded (wrong time): %d", deals_excluded_time);
+    PrintFormat("  - Deals excluded (wrong type): %d", deals_excluded_type);
+    PrintFormat("  - EA's filtered PnL: %.2f", todays_pnl);
+    PrintFormat("  - All deals PnL (%s): %.2f", _Symbol, todays_pnl_all_deals);
+    
+    if(MathAbs(todays_pnl - todays_pnl_all_deals) > 0.01)
+    {
+        PrintFormat("CalculateTodaysClosedPnL: SIGNIFICANT DIFFERENCE detected between filtered (%.2f) and all deals (%.2f)!", 
+                    todays_pnl, todays_pnl_all_deals);
+        PrintFormat("This suggests trades with different magic numbers or non-closing deals are affecting the total.");
+    }
+    
+    return todays_pnl;
+}
+
+//+------------------------------------------------------------------+
+//| Debug PnL Calculation - Multiple Filter Combinations            |
+//+------------------------------------------------------------------+
+void DebugPnLCalculation()
+{
+    MqlDateTime dt_struct;
+    TimeToStruct(TimeCurrent(), dt_struct);
+    dt_struct.hour = 0;
+    dt_struct.min = 0;
+    dt_struct.sec = 0;
+    datetime today_start = StructToTime(dt_struct);
+    datetime tomorrow_start = today_start + 86400;
+    
+    PrintFormat("=== DEBUG PNL CALCULATION ===");
+    PrintFormat("Date Range: %s to %s", TimeToString(today_start, TIME_DATE|TIME_SECONDS), TimeToString(tomorrow_start, TIME_DATE|TIME_SECONDS));
+    
+    if(!HistorySelect(today_start, TimeCurrent()))
+    {
+        Print("DebugPnLCalculation: Error selecting history!");
+        return;
+    }
+    
+    double pnl_all_symbol = 0.0;           // All deals for current symbol
+    double pnl_magic_only = 0.0;          // Only EA's magic number deals
+    double pnl_closing_only = 0.0;        // Only closing deals for symbol
+    double pnl_magic_closing = 0.0;       // EA's magic + closing only
+    
+    int count_all = 0, count_magic = 0, count_closing = 0, count_magic_closing = 0;
+    
+    int deals_total = HistoryDealsTotal();
+    
+    for(int i = 0; i < deals_total; i++)
+    {
+        ulong deal_ticket = HistoryDealGetTicket(i);
+        if(deal_ticket > 0)
+        {
+            datetime deal_time = (datetime)HistoryDealGetInteger(deal_ticket, DEAL_TIME);
+            long deal_magic = HistoryDealGetInteger(deal_ticket, DEAL_MAGIC);
+            ENUM_DEAL_ENTRY deal_entry = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(deal_ticket, DEAL_ENTRY);
+            string deal_symbol = HistoryDealGetString(deal_ticket, DEAL_SYMBOL);
+            double deal_profit = HistoryDealGetDouble(deal_ticket, DEAL_PROFIT);
+            ENUM_DEAL_TYPE deal_type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(deal_ticket, DEAL_TYPE);
+            
+            bool time_ok = (deal_time >= today_start && deal_time < tomorrow_start);
+            bool symbol_ok = (deal_symbol == _Symbol);
+            bool magic_ok = (deal_magic == MagicNumber);
+            bool entry_ok = (deal_entry == DEAL_ENTRY_OUT);
+            bool is_trade_deal = (deal_type == DEAL_TYPE_BUY || deal_type == DEAL_TYPE_SELL);
+            
+            if(time_ok && symbol_ok && is_trade_deal)
+            {
+                pnl_all_symbol += deal_profit;
+                count_all++;
+                
+                if(magic_ok)
+                {
+                    pnl_magic_only += deal_profit;
+                    count_magic++;
+                }
+                
+                if(entry_ok)
+                {
+                    pnl_closing_only += deal_profit;
+                    count_closing++;
+                    
+                    if(magic_ok)
+                    {
+                        pnl_magic_closing += deal_profit;
+                        count_magic_closing++;
+                    }
+                }
+            }
+        }
+    }
+    
+    PrintFormat("PnL Analysis Results:");
+    PrintFormat("1. All %s deals today: %.2f (%d deals)", _Symbol, pnl_all_symbol, count_all);
+    PrintFormat("2. Magic %d deals only: %.2f (%d deals)", MagicNumber, pnl_magic_only, count_magic);
+    PrintFormat("3. Closing deals only (%s): %.2f (%d deals)", _Symbol, pnl_closing_only, count_closing);
+    PrintFormat("4. Magic %d + Closing: %.2f (%d deals) <- EA's calculation", MagicNumber, pnl_magic_closing, count_magic_closing);
+    PrintFormat("========================");
+    
+    // Compare with MT5's account history summary
+    double account_profit_today = 0.0;
+    for(int i = 0; i < deals_total; i++)
+    {
+        ulong deal_ticket = HistoryDealGetTicket(i);
+        if(deal_ticket > 0)
+        {
+            datetime deal_time = (datetime)HistoryDealGetInteger(deal_ticket, DEAL_TIME);
+            string deal_symbol = HistoryDealGetString(deal_ticket, DEAL_SYMBOL);
+            double deal_profit = HistoryDealGetDouble(deal_ticket, DEAL_PROFIT);
+            ENUM_DEAL_TYPE deal_type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(deal_ticket, DEAL_TYPE);
+            
+            if(deal_time >= today_start && deal_time < tomorrow_start && 
+               (deal_type == DEAL_TYPE_BUY || deal_type == DEAL_TYPE_SELL))
+            {
+                account_profit_today += deal_profit;
+            }
+        }
+    }
+    PrintFormat("Total Account PnL Today (all symbols): %.2f", account_profit_today);
+}
