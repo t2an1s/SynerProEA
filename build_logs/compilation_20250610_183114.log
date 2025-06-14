@@ -1,0 +1,9 @@
+[2025-06-10 18:31:14] [INFO] [0;36mCompilation started at Tue Jun 10 18:31:14 CEST 2025[0m
+[2025-06-10 18:31:14] [INFO] [0;36mSetting up compilation environment...[0m
+[2025-06-10 18:31:14] [INFO] [0;36mDetected macOS environment - using CrossOver cxstart for MT5[0m
+[2025-06-10 18:31:14] [INFO] [0;36mcxstart binary: /Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/cxstart[0m
+[2025-06-10 18:31:14] [INFO] [0;36mMetaEditor path: C:/Program Files/MetaTrader 5/MetaEditor64.exe[0m
+[2025-06-10 18:31:14] [INFO] [0;36mTarget bottle: MT5[0m
+[2025-06-10 18:31:14] [SUCCESS] [0;32mEnvironment setup completed[0m
+[2025-06-10 18:31:14] [INFO] [0;36mStarting compilation of 2 Expert Advisor(s)[0m
+[2025-06-10 18:31:14] [INFO] [0;36mCompiling SynPropEA1.mq5...[0m
